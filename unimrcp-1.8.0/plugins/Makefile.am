@@ -17,3 +17,11 @@ endif
 if RECORDER_PLUGIN
 SUBDIRS               += mrcp-recorder
 endif
+
+if ALISYNTH_PLUGIN
+SUBDIRS               += ali-synth
+endif
+
+if ALIRECOG_PLUGIN
+SUBDIRS               += ali-recog
+endif

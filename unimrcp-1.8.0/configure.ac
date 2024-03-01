@@ -207,6 +207,16 @@ UNI_PLUGIN_ENABLED(recorder)
 
 AM_CONDITIONAL([RECORDER_PLUGIN],[test "${enable_recorder_plugin}" = "yes"])
 
+dnl Ali synthesizer plugin.
+UNI_PLUGIN_ENABLED(alisynth)
+
+AM_CONDITIONAL([ALISYNTH_PLUGIN],[test "${enable_alisynth_plugin}" = "yes"])
+
+dnl Ali recognizer plugin.
+UNI_PLUGIN_ENABLED(alirecog)
+
+AM_CONDITIONAL([ALIRECOG_PLUGIN],[test "${enable_alirecog_plugin}" = "yes"])
+
 dnl Enable test suites.
 AC_ARG_ENABLE(test-suites,
     [AC_HELP_STRING([--enable-test-suites  ],[build test suites])],
@@ -237,6 +247,8 @@ AC_CONFIG_FILES([
     plugins/demo-synth/Makefile
     plugins/demo-recog/Makefile
     plugins/demo-verifier/Makefile
+    plugins/ali-synth/Makefile
+    plugins/ali-recog/Makefile
     platforms/Makefile
     platforms/libunimrcp-server/Makefile
     platforms/libunimrcp-client/Makefile
@@ -294,6 +306,9 @@ echo Demo synthesizer plugin....... : $enable_demosynth_plugin
 echo Demo recognizer plugin........ : $enable_demorecog_plugin
 echo Demo verifier plugin.......... : $enable_demoverifier_plugin
 echo Recorder plugin............... : $enable_recorder_plugin
+echo
+echo Ali synthesizer plugin....... : $enable_alisynth_plugin
+echo Ali recognizer plugin........ : $enable_alirecog_plugin
 echo
 echo Installation layout........... : $layout_name
 echo Installation directory........ : $prefix
