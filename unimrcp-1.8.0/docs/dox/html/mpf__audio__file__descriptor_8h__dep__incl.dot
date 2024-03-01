@@ -1,0 +1,8 @@
+digraph "mpf_audio_file_descriptor.h"
+{
+  edge [fontname="Helvetica",fontsize="10",labelfontname="Helvetica",labelfontsize="10"];
+  node [fontname="Helvetica",fontsize="10",shape=record];
+  Node15 [label="mpf_audio_file_descriptor.h",height=0.2,width=0.4,color="black", fillcolor="grey75", style="filled", fontcolor="black"];
+  Node15 -> Node16 [dir="back",color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node16 [label="mpf_audio_file_stream.h",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$mpf__audio__file__stream_8h.html",tooltip="MPF Audio FIle Stream. "];
+}

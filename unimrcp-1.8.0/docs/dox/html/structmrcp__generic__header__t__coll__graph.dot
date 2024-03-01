@@ -1,0 +1,10 @@
+digraph "mrcp_generic_header_t"
+{
+  edge [fontname="Helvetica",fontsize="10",labelfontname="Helvetica",labelfontsize="10"];
+  node [fontname="Helvetica",fontsize="10",shape=record];
+  Node1 [label="mrcp_generic_header_t",height=0.2,width=0.4,color="black", fillcolor="grey75", style="filled", fontcolor="black"];
+  Node2 -> Node1 [dir="back",color="darkorchid3",fontsize="10",style="dashed",label=" active_request_id_list" ,fontname="Helvetica"];
+  Node2 [label="mrcp_request_id_list_t",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmrcp__request__id__list__t.html"];
+  Node3 -> Node1 [dir="back",color="darkorchid3",fontsize="10",style="dashed",label=" proxy_sync_id\nset_cookie2\ncontent_location\ncontent_type\naccept\ncontent_base\ncontent_encoding\ncontent_id\naccept_charset\nset_cookie\n..." ,fontname="Helvetica"];
+  Node3 [label="apt_str_t",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structapt__str__t.html"];
+}

@@ -1,0 +1,17 @@
+digraph "mpf" {
+  compound=true
+  node [ fontsize="10", fontname="Helvetica"];
+  edge [ labelfontsize="10", labelfontname="Helvetica"];
+  subgraph clusterdir_6719ab1f1f7655efc2fa43f7eb574fd1 {
+    graph [ bgcolor="#ddddee", pencolor="black", label="libs" fontname="Helvetica", fontsize="10", URL="dir_6719ab1f1f7655efc2fa43f7eb574fd1.html"]
+  subgraph clusterdir_342be8fa773ff0594874056fe107febd {
+    graph [ bgcolor="#eeeeff", pencolor="black", label="" URL="dir_342be8fa773ff0594874056fe107febd.html"];
+    dir_342be8fa773ff0594874056fe107febd [shape=plaintext label="mpf"];
+    dir_92459038e0c04805cc4a923303ee7ebb [shape=box label="codecs" color="red" fillcolor="white" style="filled" URL="dir_92459038e0c04805cc4a923303ee7ebb.html"];
+    dir_3c1f389eca1f441ba1c98a8d099f902a [shape=box label="include" color="black" fillcolor="white" style="filled" URL="dir_3c1f389eca1f441ba1c98a8d099f902a.html"];
+  }
+  }
+  dir_995e6b30ef7b7f0b2dec48039971ec97 [shape=box label="apr-toolkit" fillcolor="white" style="filled" color="red" URL="dir_995e6b30ef7b7f0b2dec48039971ec97.html"];
+  dir_92459038e0c04805cc4a923303ee7ebb->dir_3c1f389eca1f441ba1c98a8d099f902a [headlabel="2", labeldistance=1.5 headhref="dir_000007_000011.html"];
+  dir_3c1f389eca1f441ba1c98a8d099f902a->dir_995e6b30ef7b7f0b2dec48039971ec97 [headlabel="10", labeldistance=1.5 headhref="dir_000011_000001.html"];
+}
