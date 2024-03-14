@@ -50,12 +50,7 @@ extern "C" {
 #include "nlsEvent.h"
 #include "speechRecognizerRequest.h"
 #include "Token.h"
-
-#define FRAME_16K_20MS 640
-#define SAMPLE_RATE_16K 16000
-#define DEFAULT_STRING_LEN 512
-
-#define LOOP_TIMEOUT 60 
+ 
 #define FRAME_SIZE 3200
 #define SAMPLE_RATE 16000
  
@@ -70,8 +65,8 @@ using AlibabaNls::SpeechRecognizerRequest;
 typedef struct ali_recog_engine_t ali_recog_engine_t;
 typedef struct ali_recog_channel_t ali_recog_channel_t;
 typedef struct ali_recog_msg_t ali_recog_msg_t;
-
-
+ 
+ 
 // Globally maintain a service authentication token and its corresponding validity time stamp
 // Before each call to the service, first determine whether the token has expired
 // If it has expired, a token is regenerated based on the AccessKey ID and AccessKey Secret, and the global token and its validity timestamp are updated.
@@ -80,14 +75,6 @@ std::string g_appkey = "";   //阿里的APP KEY
 std::string g_akId = "";     // 阿里的access ID
 std::string g_akSecret = ""; // 阿里的access secret
 std::string g_token = "";
-std::string g_appkey = "";
-std::string g_akId = "";
-std::string g_akSecret = "";
-std::string g_token = "";
-std::string g_domain = "";
-std::string g_api_version = "";
-std::string g_url = "";
-std::string g_audio_path = "";
 long g_expireTime = -1;
  
 struct timeval tv;
@@ -253,14 +240,6 @@ static apt_bool_t ali_recog_engine_open(mrcp_engine_t *engine)
 		apt_task_start(task);
 	}
  
-	//加载引擎参数
-	if (engine->config->params) {
-		const char *app_key = apr_table_get(engine->config->params, "app-key");			//
-		const char *app_key = apr_table_get(engine->config->params, "log-file");		//日志文件名称
-		const char *app_key = apr_table_get(engine->config->params, "log-level");		//日志文件大小 MB
-		const char *app_key = apr_table_get(engine->config->params, "log-file-num");	//日志文件个数
-	}
- 	
     // 初始化阿里引擎
 	// Set Ali logger
 	if (-1 == NlsClient::getInstance()->setLogConfig("log-recognizer", LogDebug, 400)) {
@@ -717,10 +696,6 @@ static apt_bool_t ali_recog_msg_process(apt_task_t *task, apt_task_msg_t *msg)
 
 // Regenerate a new token base no  AccessKey ID and AccessKey Secrt, and get validity timestamp.
 // All concurrent service can share a token, just Regenerate before expire.
-int parse_params() {
-
-}
-
 int generateToken(std::string akId, std::string akSecret, std::string* token, long* expireTime) {
 	NlsToken nlsTokenRequest;
 	nlsTokenRequest.setAccessKeyId(akId.c_str());
