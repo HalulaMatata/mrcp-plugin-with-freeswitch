@@ -1,0 +1,8 @@
+digraph "mrcp_recog_header_t"
+{
+  edge [fontname="Helvetica",fontsize="10",labelfontname="Helvetica",labelfontsize="10"];
+  node [fontname="Helvetica",fontsize="10",shape=record];
+  Node1 [label="mrcp_recog_header_t",height=0.2,width=0.4,color="black", fillcolor="grey75", style="filled", fontcolor="black"];
+  Node2 -> Node1 [dir="back",color="darkorchid3",fontsize="10",style="dashed",label=" phrase_nl\ninput_type\nrecognizer_context\l_block\nspeech_language\nphrase_id\nfailed_uri\ncompletion_reason\ninterpret_text\nmedia_type\nfailed_uri_cause\n..." ,fontname="Helvetica"];
+  Node2 [label="apt_str_t",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structapt__str__t.html"];
+}

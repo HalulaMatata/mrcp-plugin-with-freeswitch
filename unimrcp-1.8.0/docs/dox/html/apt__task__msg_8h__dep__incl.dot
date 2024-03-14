@@ -1,0 +1,48 @@
+digraph "apt_task_msg.h"
+{
+  edge [fontname="Helvetica",fontsize="10",labelfontname="Helvetica",labelfontsize="10"];
+  node [fontname="Helvetica",fontsize="10",shape=record];
+  Node5 [label="apt_task_msg.h",height=0.2,width=0.4,color="black", fillcolor="grey75", style="filled", fontcolor="black"];
+  Node5 -> Node6 [dir="back",color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node6 [label="apt_task.h",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$apt__task_8h.html",tooltip="Thread Execution Abstraction. "];
+  Node6 -> Node7 [dir="back",color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node7 [label="apt_consumer_task.h",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$apt__consumer__task_8h.html",tooltip="Consumer Task Definition. "];
+  Node6 -> Node8 [dir="back",color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node8 [label="apt_poller_task.h",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$apt__poller__task_8h.html",tooltip="Poller Task. "];
+  Node6 -> Node9 [dir="back",color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node9 [label="mpf_engine.h",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$mpf__engine_8h.html",tooltip="Media Processing Framework Engine. "];
+  Node9 -> Node10 [dir="back",color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node10 [label="mrcp_client_session.h",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$mrcp__client__session_8h.html",tooltip="MRCP Client Session. "];
+  Node9 -> Node11 [dir="back",color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node11 [label="mrcp_server_session.h",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$mrcp__server__session_8h.html",tooltip="MRCP Server Session. "];
+  Node6 -> Node12 [dir="back",color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node12 [label="mrcp_client.h",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$mrcp__client_8h.html",tooltip="MRCP Client. "];
+  Node12 -> Node13 [dir="back",color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node13 [label="unimrcp_client.h",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$unimrcp__client_8h.html",tooltip="UniMRCP Client. "];
+  Node6 -> Node14 [dir="back",color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node14 [label="mrcp_server.h",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$mrcp__server_8h.html",tooltip="MRCP Server. "];
+  Node14 -> Node15 [dir="back",color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node15 [label="unimrcp_server.h",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$unimrcp__server_8h.html",tooltip="UniMRCP Server. "];
+  Node6 -> Node11 [dir="back",color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node6 -> Node16 [dir="back",color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node16 [label="mrcp_sig_agent.h",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$mrcp__sig__agent_8h.html",tooltip="Abstract MRCP Signaling Agent. "];
+  Node16 -> Node17 [dir="back",color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node17 [label="mrcp_sofiasip_client\l_agent.h",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$mrcp__sofiasip__client__agent_8h.html",tooltip="Implementation of MRCP Signaling Interface using Sofia-SIP. "];
+  Node16 -> Node18 [dir="back",color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node18 [label="mrcp_sofiasip_server\l_agent.h",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$mrcp__sofiasip__server__agent_8h.html",tooltip="Implementation of MRCP Signaling Interface using Sofia-SIP. "];
+  Node16 -> Node19 [dir="back",color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node19 [label="mrcp_unirtsp_client\l_agent.h",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$mrcp__unirtsp__client__agent_8h.html",tooltip="Implementation of MRCP Signaling Interface using UniRTSP. "];
+  Node16 -> Node20 [dir="back",color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node20 [label="mrcp_unirtsp_server\l_agent.h",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$mrcp__unirtsp__server__agent_8h.html",tooltip="Implementation of MRCP Signaling Interface using UniRTSP. "];
+  Node6 -> Node21 [dir="back",color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node21 [label="mrcp_client_connection.h",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$mrcp__client__connection_8h.html",tooltip="MRCPv2 Client Connection. "];
+  Node6 -> Node22 [dir="back",color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node22 [label="mrcp_server_connection.h",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$mrcp__server__connection_8h.html",tooltip="MRCPv2 Server Connection. "];
+  Node6 -> Node23 [dir="back",color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node23 [label="rtsp_client.h",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$rtsp__client_8h.html",tooltip="RTSP Client. "];
+  Node6 -> Node24 [dir="back",color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node24 [label="rtsp_server.h",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$rtsp__server_8h.html",tooltip="RTSP Server. "];
+  Node6 -> Node25 [dir="back",color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node25 [label="mrcp_sofiasip_task.h",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$mrcp__sofiasip__task_8h.html",tooltip="Sofia-SIP Task. "];
+  Node5 -> Node10 [dir="back",color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+}

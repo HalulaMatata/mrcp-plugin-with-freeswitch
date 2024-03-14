@@ -1,0 +1,14 @@
+digraph "mrcp_resource_t"
+{
+  edge [fontname="Helvetica",fontsize="10",labelfontname="Helvetica",labelfontsize="10"];
+  node [fontname="Helvetica",fontsize="10",shape=record];
+  Node1 [label="mrcp_resource_t",height=0.2,width=0.4,color="black", fillcolor="grey75", style="filled", fontcolor="black"];
+  Node2 -> Node1 [dir="back",color="darkorchid3",fontsize="10",style="dashed",label=" name" ,fontname="Helvetica"];
+  Node2 [label="apt_str_t",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structapt__str__t.html"];
+  Node3 -> Node1 [dir="back",color="darkorchid3",fontsize="10",style="dashed",label=" get_resource_header\l_vtable" ,fontname="Helvetica"];
+  Node3 [label="mrcp_header_vtable_t",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmrcp__header__vtable__t.html"];
+  Node4 -> Node3 [dir="back",color="darkorchid3",fontsize="10",style="dashed",label=" field_table" ,fontname="Helvetica"];
+  Node4 [label="apt_str_table_item_t",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structapt__str__table__item__t.html"];
+  Node2 -> Node4 [dir="back",color="darkorchid3",fontsize="10",style="dashed",label=" value" ,fontname="Helvetica"];
+  Node4 -> Node1 [dir="back",color="darkorchid3",fontsize="10",style="dashed",label=" get_method_str_table\nget_event_str_table" ,fontname="Helvetica"];
+}
