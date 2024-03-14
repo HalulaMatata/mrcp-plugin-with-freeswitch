@@ -50,10 +50,17 @@ extern "C" {
 #include "nlsEvent.h"
 #include "speechRecognizerRequest.h"
 #include "Token.h"
- 
+
+#define FRAME_16K_20MS 640
+#define SAMPLE_RATE_16K 16000
+#define DEFAULT_STRING_LEN 512
+#define LOOP_TIMEOUT 60 
 #define FRAME_SIZE 3200
-#define SAMPLE_RATE 16000
- 
+
+#define FORMATLEN 8
+
+#define ZSTR(str) (!str || *str=='')
+
 using namespace AlibabaNlsCommon;
 using AlibabaNls::NlsClient;
 using AlibabaNls::NlsEvent;
@@ -65,8 +72,23 @@ using AlibabaNls::SpeechRecognizerRequest;
 typedef struct ali_recog_engine_t ali_recog_engine_t;
 typedef struct ali_recog_channel_t ali_recog_channel_t;
 typedef struct ali_recog_msg_t ali_recog_msg_t;
- 
- 
+
+// Recognizer识别对象的参数
+typedef struct RecognizerParam_st {
+	int maxStartSilence;		// 允许的最大开始静音, 可选, 单位是毫秒(0,60000], 超出后服务端将会发送RecognitionCompleted事件, 结束本次识别.注意: 需要先设置enable_voice_detection为true
+	int maxEndSilence; 			// 最大结束静音时长。单位：毫秒，取值范围：200ms～6000ms, 超出后服务端将会发送RecognitionCompleted事件, 需要先设置enable_voice_detection为true
+	int sample_rate;			// 设置音频数据采样率, 可选参数, 目前支持16000, 8000. 默认是16000
+	//int socktimeout;			// 设置Socket接收超时时间。(2.x版本 接口)
+	int sendTimeout;			// 设置发送超时时间，默认5000ms。 (3.x版本 接口)
+	int recvTimeout;			// 设置接收超时时间， 默认15000ms，需setEnableRecvTimeout开启后生效 (3.x版本 接口)
+	bool bIntermediate;			// 设置是否返回中间识别结果, 可选参数. 默认false
+	bool bPunctuation;			// 设置是否在后处理中添加标点, 可选参数. 默认false
+	bool bITN;					// 设置是否在后处理中执行ITN(数字转换), 可选参数. 默认false
+	bool bvoicedetection;		// 设置是否启动自定义静音检测。默认值：false
+	char format[FORMATLEN];		// 设置音频数据编码格式（PCM、OPUS、OPU，默认是PCM，推荐OPUS）
+	char txtFormat[FORMATLEN];	// 设置输出文本的编码格式，编码格式UTF-8 or GBK。
+}RecognizerParam_t;
+
 // Globally maintain a service authentication token and its corresponding validity time stamp
 // Before each call to the service, first determine whether the token has expired
 // If it has expired, a token is regenerated based on the AccessKey ID and AccessKey Secret, and the global token and its validity timestamp are updated.
@@ -75,13 +97,23 @@ std::string g_appkey = "";   //阿里的APP KEY
 std::string g_akId = "";     // 阿里的access ID
 std::string g_akSecret = ""; // 阿里的access secret
 std::string g_token = "";
-long g_expireTime = -1;
- 
+std::string g_domain = "";
+std::string g_api_version = "";
+std::string g_aliurl = "";
+std::string g_alilog_path = "alirecog.log";
+
+static long g_expireTime = -1;
+static RecognizerParam_t g_recognizer_params;
+
 struct timeval tv;
 struct timeval tv1;
  
+
 // 阿里SDK相关函数声明
-int generateToken(std::string akId, std::string akSecret, std::string* token, long* expireTime);
+static int parse_recognizer_params(apr_table_t *params);
+static int checkToken(void);
+static int generateToken(std::string akId, std::string akSecret, std::string* token, long* expireTime);
+
 void OnRecognitionStarted(NlsEvent* cbEvent, void* recog_channel);
 void OnRecognitionResultChanged(NlsEvent* cbEvent, void* recog_channel);
 void OnRecognitionCompleted(NlsEvent* cbEvent, void* recog_channel);
@@ -157,15 +189,16 @@ struct ali_recog_channel_t {
 	FILE					*audio_out;
  
 	/** Ali SpeechRecognizerRequest */
+	int						ch_release;
 	SpeechRecognizerRequest *ali_request;   //阿里SDK的属性
 	/** Ali Recognizer Result */
 	const char			  *result;          //阿里SDK返回结果存储在这
 };
  
 typedef enum {
-	ali_RECOG_MSG_OPEN_CHANNEL,
-	ali_RECOG_MSG_CLOSE_CHANNEL,
-	ali_RECOG_MSG_REQUEST_PROCESS
+	ALI_RECOG_MSG_OPEN_CHANNEL,
+	ALI_RECOG_MSG_CLOSE_CHANNEL,
+	ALI_RECOG_MSG_REQUEST_PROCESS
 } ali_recog_msg_type_e;
  
 /** Declaration of ali recognizer task message */
@@ -177,7 +210,16 @@ struct ali_recog_msg_t {
  
 static apt_bool_t ali_recog_msg_signal(ali_recog_msg_type_e type, mrcp_engine_channel_t *channel, mrcp_message_t *request);
 static apt_bool_t ali_recog_msg_process(apt_task_t *task, apt_task_msg_t *msg);
- 
+
+//inline 
+inline bool strTrue(const char *str) {
+	return str && (!strcasecmp("true", str) || !strcasecmp("yes", str) || !strcasecmp("1", str))
+}
+
+inline bool strFalse(const char *str) {
+	return !(str && (!strcasecmp("false", str) || !strcasecmp("no", str) || !strcasecmp("0", str)))
+}
+
 /** Declare this macro to set plugin version */
 MRCP_PLUGIN_VERSION_DECLARE
  
@@ -234,29 +276,143 @@ static apt_bool_t ali_recog_engine_destroy(mrcp_engine_t *engine)
 /** Open recognizer engine */
 static apt_bool_t ali_recog_engine_open(mrcp_engine_t *engine)
 {
+	enum LogLevel loglevel = LogInfo;
+	int logfilesize = 100;
+	int logfilenum = 2;
+	int workthread = 4;
+	long syncCallTimeout = 60 * 1000;
+	const char *value;
+
 	ali_recog_engine_t *ali_engine = (ali_recog_engine_t *)engine->obj;
 	if(ali_engine->task) {
 		apt_task_t *task = apt_consumer_task_base_get(ali_engine->task);
 		apt_task_start(task);
 	}
- 
+	
+	//加载引擎参数
+	if (!engine->config->params) {
+		apt_log(RECOG_LOG_MARK,APT_PRIO_INFO,"Params 'app-key' 'app-id', 'token-secret', '', 'url' must be set");
+		goto NLSERR;
+	}
+
+	value = apr_table_get(engine->config->params, "app-key"); //ali app key
+	if (ZSTR(value)) {
+		apt_log(RECOG_LOG_MARK,APT_PRIO_INFO,"Param 'app-key' is null");
+		goto NLSERR;
+	}
+	g_appkey = value;
+
+	value = apr_table_get(engine->config->params, "app-id"); //ali app id
+	if (ZSTR(value)) {
+		apt_log(RECOG_LOG_MARK,APT_PRIO_INFO,"Param 'app-id' is null");
+		goto NLSERR;
+	}
+	g_akId = value;
+
+	value = apr_table_get(engine->config->params, "token-secret"); //ali token secret
+	if (ZSTR(value)) {
+		apt_log(RECOG_LOG_MARK,APT_PRIO_INFO,"Param 'token-secret' is null");
+		goto NLSERR;
+	}
+	g_akSecret = value;
+
+	value = apr_table_get(engine->config->params, "url"); //ali url
+	if (ZSTR(value)) {
+		apt_log(RECOG_LOG_MARK,APT_PRIO_INFO,"Param 'url' is null");
+		goto NLSERR;
+	}
+	g_aliurl = value;
+
+	value = apr_table_get(engine->config->params, "ali-domain"); //ali ali-domain
+	if (!ZSTR(value)) {
+		g_domain = value;
+	}
+
+	value = apr_table_get(engine->config->params, "api-version"); //ali api-version
+	if (!ZSTR(value)) {
+		g_api_version = value;
+	}
+
+	value = apr_table_get(engine->config->params, "log-file"); //日志文件名称
+	if (ZSTR(value)) {
+		g_alilog_path = value;
+	}
+
+	value = apr_table_get(engine->config->params, "log-size"); //日志文件大小 MB
+	if (!ZSTR(value)) {
+		logfilesize = atoi(value);
+		if (logfilesize < 10) {
+			logfilesize = 10;
+		}
+	}
+
+	value = apr_table_get(engine->config->params, "log-level"); //ali api-version
+	if (value) {
+		if (!strcasecmp("debug", value))
+			loglevel = LogDebug;
+		else if (!strcasecmp("info", value))
+			loglevel = LogInfo;
+		else if (!strcasecmp("warn", value))
+			loglevel = LogWarning;
+		else if (!strcasecmp("error", value))
+			loglevel = LogError;
+	}
+
+	//set log file
+	value = apr_table_get(engine->config->params, "log-num"); //ali api-version
+	if (!ZSTR(value)) {
+		logfilenum = atoi(value);
+		if (logfilenum <= 0) {
+			logfilenum = 2;
+		}
+	}
+
+	value = apr_table_get(engine->config->params, "sync-call-timeout"); //同步超时时间
+	if (!ZSTR(value)) {
+		syncCallTimeout = atol(value);
+		if (syncCallTimeout < 50) {
+			syncCallTimeout = 50;
+		}
+	}
+
+	value = apr_table_get(engine->config->params, "work-thread"); //工作线程
+	if (!ZSTR(value)) {
+		workthread = atoi(value);
+		if (workthread < -1) {
+			workthread = -1;
+		}
+		else if (!workthread) {
+			workthread = 4;
+		}
+	}
+
+	parse_recognizer_params(engine->config->params);
+
     // 初始化阿里引擎
 	// Set Ali logger
-	if (-1 == NlsClient::getInstance()->setLogConfig("log-recognizer", LogDebug, 400)) {
+	if (-1 == NlsClient::getInstance()->setLogConfig(g_alilog_path, loglevel, logfilesize, logfilenum)) {
 		printf("set log failed.\n");
 	   
 		return mrcp_engine_open_respond(engine,FALSE);
 	}
  
+	//设置同步调用模式的超时时间（ms），0则为关闭同步模式，默认0。此模式start()后收到服务端结果再return出去，stop()后收到close()回调再return出去。
+	NlsClient::getInstance()->setSyncCallTimeout(syncCallTimeout);
+
 	// Generate a new token
 	if (-1 == generateToken(g_akId, g_akSecret, &g_token, &g_expireTime)) {
-		return mrcp_engine_open_respond(engine,FALSE);
+		goto ENGINEERR;
 	}
  
-	// Start Ali Worker threak
-	NlsClient::getInstance()->startWorkThread(4);
+	// 高并发的情况下推荐4, 单请求的情况推荐为1
+    // 若高并发CPU占用率较高, 则可填-1启用所有CPU核
+	NlsClient::getInstance()->startWorkThread(workthread);
  
 	return mrcp_engine_open_respond(engine,TRUE);
+
+NLSERR:
+	NlsClient::releaseInstance();
+	return mrcp_engine_open_respond(engine,FALSE);
 }
  
 /** Close recognizer engine */
@@ -330,19 +486,19 @@ static apt_bool_t ali_recog_channel_open(mrcp_engine_channel_t *channel)
 		}
 	}
  
-	return ali_recog_msg_signal(ali_RECOG_MSG_OPEN_CHANNEL,channel,NULL);
+	return ali_recog_msg_signal(ALI_RECOG_MSG_OPEN_CHANNEL,channel,NULL);
 }
  
 /** Close engine channel (asynchronous response MUST be sent)*/
 static apt_bool_t ali_recog_channel_close(mrcp_engine_channel_t *channel)
 {
-	return ali_recog_msg_signal(ali_RECOG_MSG_CLOSE_CHANNEL,channel,NULL);
+	return ali_recog_msg_signal(ALI_RECOG_MSG_CLOSE_CHANNEL,channel,NULL);
 }
  
 /** Process MRCP channel request (asynchronous response MUST be sent)*/
 static apt_bool_t ali_recog_channel_request_process(mrcp_engine_channel_t *channel, mrcp_message_t *request)
 {
-	return ali_recog_msg_signal(ali_RECOG_MSG_REQUEST_PROCESS,channel,request);
+	return ali_recog_msg_signal(ALI_RECOG_MSG_REQUEST_PROCESS,channel,request);
 }
  
 /** Process RECOGNIZE request */
@@ -405,7 +561,7 @@ static apt_bool_t ali_recog_channel_recognize(mrcp_engine_channel_t *channel, mr
 	ali_request->setOnRecognitionCompleted(OnRecognitionCompleted, recog_channel);
 	ali_request->setAppKey(g_appkey.c_str());
 	ali_request->setFormat("pcm");
-	ali_request->setSampleRate(SAMPLE_RATE);
+	ali_request->setSampleRate(SAMPLE_RATE_16K);
 	ali_request->setIntermediateResult(true);
 	ali_request->setPunctuationPrediction(true);
 	ali_request->setInverseTextNormalization(true);
@@ -419,7 +575,8 @@ static apt_bool_t ali_recog_channel_recognize(mrcp_engine_channel_t *channel, mr
  
 	if (ali_request->start() < 0) {
 		printf("start() failed. may be can not connect server. please check network or firewalld\n");
-		NlsClient::getInstance()->releaseRecognizerRequest(recog_channel->ali_request); 
+		NlsClient::getInstance()->releaseRecognizerRequest(recog_channel->ali_request);
+		recog_channel->ali_request = NULL;
 		return FALSE;
 	}
  
@@ -669,11 +826,11 @@ static apt_bool_t ali_recog_msg_process(apt_task_t *task, apt_task_msg_t *msg)
 {
 	ali_recog_msg_t *ali_msg = (ali_recog_msg_t*)msg->data;
 	switch(ali_msg->type) {
-		case ali_RECOG_MSG_OPEN_CHANNEL:
+		case ALI_RECOG_MSG_OPEN_CHANNEL:
 			/* open channel and send asynch response */
 			mrcp_engine_channel_open_respond(ali_msg->channel,TRUE);
 			break;
-		case ali_RECOG_MSG_CLOSE_CHANNEL:
+		case ALI_RECOG_MSG_CLOSE_CHANNEL:
 		{
 			/* close channel, make sure there is no activity and send asynch response */
 			ali_recog_channel_t *recog_channel = (ali_recog_channel_t *)ali_msg->channel->method_obj;
@@ -681,11 +838,14 @@ static apt_bool_t ali_recog_msg_process(apt_task_t *task, apt_task_msg_t *msg)
 				fclose(recog_channel->audio_out);
 				recog_channel->audio_out = NULL;
 			}
- 
+			if (recog_channel->ali_request && recog_channel->ch_release) {
+				NlsClient::getInstance()->releaseRecognizerRequest(recog_channel->ali_request);
+				recog_channel->ali_request = NULL;
+			}
 			mrcp_engine_channel_close_respond(ali_msg->channel);
 			break;
 		}
-		case ali_RECOG_MSG_REQUEST_PROCESS:
+		case ALI_RECOG_MSG_REQUEST_PROCESS:
 			ali_recog_channel_request_dispatch(ali_msg->channel,ali_msg->request);
 			break;
 		default:
@@ -696,7 +856,155 @@ static apt_bool_t ali_recog_msg_process(apt_task_t *task, apt_task_msg_t *msg)
 
 // Regenerate a new token base no  AccessKey ID and AccessKey Secrt, and get validity timestamp.
 // All concurrent service can share a token, just Regenerate before expire.
-int generateToken(std::string akId, std::string akSecret, std::string* token, long* expireTime) {
+static int parse_recognizer_params(apr_table_t *params) {
+	int nTmp = 0;
+	const char *value;
+
+	memset(g_recognizer_params, 0, sizeof(g_recognizer_params));
+	g_recognizer_params.sample_rate = 8000;
+	g_recognizer_params.bvoicedetection = true;
+	g_recognizer_params.maxStartSilence = 3000;
+	g_recognizer_params.maxEndSilence = 200;
+	g_recognizer_params.sendTimeout = 5000;	//ms
+	g_recognizer_params.recvTimeout = 0;	//15000ms
+	g_recognizer_params.bIntermediate = true;
+	g_recognizer_params.bPunctuation = true;
+	g_recognizer_params.bITN = true;
+
+	//strcpy(g_recognizer_params.format, "pcm");
+	//strcpy(g_recognizer_params.txtFormat, "UTF-8");
+
+	value = apr_table_get(engine->config->params, "audio-format");
+	if (value) {
+		if (!strcasecmp(value, "opus") || !strcasecmp(value, "opu") || !strcasecmp(value, "pcm")) {
+			strcpy(g_recognizer_params.format, value);
+		}
+	}
+	value = apr_table_get(engine->config->params, "sample-rate"); 
+	if (!ZSTR(value)) {
+		nTmp = atoi(value);
+		if (nTmp > 0) {
+			g_recognizer_params.sample_rate = nTmp;
+		}
+	}
+	value = apr_table_get(engine->config->params, "output-txtcodec");
+	if (value) {
+		if (!strcasecmp(value, "UTF-8") || !strcasecmp(value, "GBK")) {
+			strcpy(g_recognizer_params.txtFormat, value);
+		}
+	}
+	value = apr_table_get(engine->config->params, "enable-voice-detection");
+	if (false == strFalse(value)) {
+		g_recognizer_params.bvoicedetection = false;
+	}
+	value = apr_table_get(engine->config->params, "max-start-silence");
+	if (!ZSTR(value)) {
+		nTmp = atoi(value);
+		if (nTmp > 0) {
+			g_recognizer_params.maxStartSilence = nTmp;
+		}
+	}
+	value = apr_table_get(engine->config->params, "max-end-silence");
+	if (!ZSTR(value)) {
+		nTmp = atoi(value);
+		if (nTmp > 0) {
+			g_recognizer_params.maxEndSilence = nTmp;
+		}
+	}
+	value = apr_table_get(engine->config->params, "send-timeout");
+	if (!ZSTR(value)) {
+		nTmp = atoi(value);
+		if (nTmp > 0) {
+			g_recognizer_params.sendTimeout = nTmp;
+		}
+	}
+	value = apr_table_get(engine->config->params, "recv-timeout");
+	if (!ZSTR(value)) {
+		nTmp = atoi(value);
+		if (nTmp > 0) {
+			g_recognizer_params.recvTimeout = nTmp;
+		}
+	}
+	value = apr_table_get(engine->config->params, "enable-intermediate-result");
+	if (false == strFalse(value)) {
+		g_recognizer_params.bIntermediate = false;
+	}
+	value = apr_table_get(engine->config->params, "enable-punctuation-prediction");
+	if (false == strFalse(value)) {
+		g_recognizer_params.bPunctuation = false;
+	}
+	value = apr_table_get(engine->config->params, "enable-inverse-text-normalization");
+	if (false == strFalse(value)) {
+		g_recognizer_params.bITN = false;
+	}
+
+#if 0
+	//设置音频数据编码格式 PCM、OPUS、OPU，默认是PCM
+	if (!ZSTR(g_recognizer_params.format)) {
+		request->setFormat(g_recognizer_params.format);
+	}
+	// 设置输出文本的编码格式
+	if (!ZSTR(g_recognizer_params.txtFormat)) {
+		request->setOutputFormat(g_recognizer_params.txtFormat);
+	}
+    // 设置音频数据采样率, 可选参数, 目前支持16000, 8000. 默认是16000
+    request->setSampleRate(g_recognizer_params.sample_rate);
+    // 设置是否返回中间识别结果, 可选参数. 默认false
+    request->setIntermediateResult(g_recognizer_params.bIntermediate);
+    // 设置是否在后处理中添加标点, 可选参数. 默认false
+    request->setPunctuationPrediction(g_recognizer_params.bPunctuation);
+    // 设置是否在后处理中执行ITN, 可选参数. 默认false
+    request->setInverseTextNormalization(g_recognizer_params.bITN);
+
+	//开启静音检测
+	if (g_recognizer_params.bvoicedetection) {
+		request->setEnableVoiceDetection(true);
+    	// 允许的最大开始静音, 可选, 单位是毫秒, 
+    	// 超出后服务端将会发送RecognitionCompleted事件, 结束本次识别.
+    	// 注意: 需要先设置enable_voice_detection为true
+    	request->setMaxStartSilence(g_recognizer_params.maxStartSilence);
+    	// 允许的最大结束静音, 可选, 单位是毫秒, 
+    	// 超出后服务端将会发送RecognitionCompleted事件, 结束本次识别.
+    	// 注意: 需要先设置 enable_voice_detection 为true
+    	request->setMaxEndSilence(g_recognizer_params.maxEndSilence);
+	}
+
+	//设置发送超时时间，默认5000ms
+	if (g_recognizer_params.sendTimeout > 0) {
+		request->setSendTimeout(g_recognizer_params.sendTimeout);
+	}
+
+	//设置接收超时时间， 默认15000ms，需setEnableRecvTimeout开启后生效
+	if (g_recognizer_params.recvTimeout > 0) {
+		request->setEnableRecvTimeout(true);
+		request->setRecvTimeout(g_recognizer_params.recvTimeout);
+	}
+#endif
+	return 0;
+}
+
+/**
+* 获取当前系统时间戳，判断token是否过期
+*/
+static int checkToken(void) {
+	std::time_t curTime = std::time(0);
+	if (g_expireTime - curTime < 10) {
+		apt_log(RECOG_LOG_MARK,APT_PRIO_INFO, "the token will be expired, get new token by AccessKey-ID and AccessKey-Secret.");
+		int ret = generateToken(g_akId, g_akSecret, &g_token, &g_expireTime);
+		if (ret < 0) {
+			apt_log(RECOG_LOG_MARK,APT_PRIO_ERROR,"generate token failed.");
+			return -1;
+		} else {
+			if (g_token.empty() || g_expireTime < 0) {
+				apt_log(RECOG_LOG_MARK,APT_PRIO_ERROR,"generate empty token.");
+				return -2;
+			}
+    	}
+  	}
+	return 0;
+}
+
+static int generateToken(std::string akId, std::string akSecret, std::string* token, long* expireTime) {
 	NlsToken nlsTokenRequest;
 	nlsTokenRequest.setAccessKeyId(akId.c_str());
 	nlsTokenRequest.setKeySecret(akSecret.c_str());
@@ -738,5 +1046,6 @@ void OnRecognitionTaskFailed(NlsEvent* cbEvent, void* recog_channel) {
  
 void OnRecognitionChannelClosed(NlsEvent* cbEvent, void* recog_channel) {
 	ali_recog_channel_t* tmp_chan = (ali_recog_channel_t*)recog_channel;
+	tmp_chan->ch_release = 1;
 	printf("OnRecognitionChannelClosed: response=%s\n", cbEvent->getAllResponse());
 }
