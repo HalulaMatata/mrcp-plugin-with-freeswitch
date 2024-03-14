@@ -105,10 +105,6 @@ std::string g_alilog_path = "alirecog.log";
 static long g_expireTime = -1;
 static RecognizerParam_t g_recognizer_params;
 
-struct timeval tv;
-struct timeval tv1;
- 
-
 // 阿里SDK相关函数声明
 static int parse_recognizer_params(apr_table_t *params);
 static int checkToken(void);
