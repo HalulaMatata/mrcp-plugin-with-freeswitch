@@ -189,15 +189,16 @@ struct ali_recog_channel_t {
 	FILE					*audio_out;
  
 	/** Ali SpeechRecognizerRequest */
+	int						ch_release;
 	SpeechRecognizerRequest *ali_request;   //阿里SDK的属性
 	/** Ali Recognizer Result */
 	const char			  *result;          //阿里SDK返回结果存储在这
 };
  
 typedef enum {
-	ali_RECOG_MSG_OPEN_CHANNEL,
-	ali_RECOG_MSG_CLOSE_CHANNEL,
-	ali_RECOG_MSG_REQUEST_PROCESS
+	ALI_RECOG_MSG_OPEN_CHANNEL,
+	ALI_RECOG_MSG_CLOSE_CHANNEL,
+	ALI_RECOG_MSG_REQUEST_PROCESS
 } ali_recog_msg_type_e;
  
 /** Declaration of ali recognizer task message */
@@ -485,19 +486,19 @@ static apt_bool_t ali_recog_channel_open(mrcp_engine_channel_t *channel)
 		}
 	}
  
-	return ali_recog_msg_signal(ali_RECOG_MSG_OPEN_CHANNEL,channel,NULL);
+	return ali_recog_msg_signal(ALI_RECOG_MSG_OPEN_CHANNEL,channel,NULL);
 }
  
 /** Close engine channel (asynchronous response MUST be sent)*/
 static apt_bool_t ali_recog_channel_close(mrcp_engine_channel_t *channel)
 {
-	return ali_recog_msg_signal(ali_RECOG_MSG_CLOSE_CHANNEL,channel,NULL);
+	return ali_recog_msg_signal(ALI_RECOG_MSG_CLOSE_CHANNEL,channel,NULL);
 }
  
 /** Process MRCP channel request (asynchronous response MUST be sent)*/
 static apt_bool_t ali_recog_channel_request_process(mrcp_engine_channel_t *channel, mrcp_message_t *request)
 {
-	return ali_recog_msg_signal(ali_RECOG_MSG_REQUEST_PROCESS,channel,request);
+	return ali_recog_msg_signal(ALI_RECOG_MSG_REQUEST_PROCESS,channel,request);
 }
  
 /** Process RECOGNIZE request */
@@ -574,7 +575,8 @@ static apt_bool_t ali_recog_channel_recognize(mrcp_engine_channel_t *channel, mr
  
 	if (ali_request->start() < 0) {
 		printf("start() failed. may be can not connect server. please check network or firewalld\n");
-		NlsClient::getInstance()->releaseRecognizerRequest(recog_channel->ali_request); 
+		NlsClient::getInstance()->releaseRecognizerRequest(recog_channel->ali_request);
+		recog_channel->ali_request = NULL;
 		return FALSE;
 	}
  
@@ -824,11 +826,11 @@ static apt_bool_t ali_recog_msg_process(apt_task_t *task, apt_task_msg_t *msg)
 {
 	ali_recog_msg_t *ali_msg = (ali_recog_msg_t*)msg->data;
 	switch(ali_msg->type) {
-		case ali_RECOG_MSG_OPEN_CHANNEL:
+		case ALI_RECOG_MSG_OPEN_CHANNEL:
 			/* open channel and send asynch response */
 			mrcp_engine_channel_open_respond(ali_msg->channel,TRUE);
 			break;
-		case ali_RECOG_MSG_CLOSE_CHANNEL:
+		case ALI_RECOG_MSG_CLOSE_CHANNEL:
 		{
 			/* close channel, make sure there is no activity and send asynch response */
 			ali_recog_channel_t *recog_channel = (ali_recog_channel_t *)ali_msg->channel->method_obj;
@@ -836,11 +838,14 @@ static apt_bool_t ali_recog_msg_process(apt_task_t *task, apt_task_msg_t *msg)
 				fclose(recog_channel->audio_out);
 				recog_channel->audio_out = NULL;
 			}
- 
+			if (recog_channel->ali_request && recog_channel->ch_release) {
+				NlsClient::getInstance()->releaseRecognizerRequest(recog_channel->ali_request);
+				recog_channel->ali_request = NULL;
+			}
 			mrcp_engine_channel_close_respond(ali_msg->channel);
 			break;
 		}
-		case ali_RECOG_MSG_REQUEST_PROCESS:
+		case ALI_RECOG_MSG_REQUEST_PROCESS:
 			ali_recog_channel_request_dispatch(ali_msg->channel,ali_msg->request);
 			break;
 		default:
@@ -1041,5 +1046,6 @@ void OnRecognitionTaskFailed(NlsEvent* cbEvent, void* recog_channel) {
  
 void OnRecognitionChannelClosed(NlsEvent* cbEvent, void* recog_channel) {
 	ali_recog_channel_t* tmp_chan = (ali_recog_channel_t*)recog_channel;
+	tmp_chan->ch_release = 1;
 	printf("OnRecognitionChannelClosed: response=%s\n", cbEvent->getAllResponse());
 }
