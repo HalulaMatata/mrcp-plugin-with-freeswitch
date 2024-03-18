@@ -267,6 +267,7 @@ static apt_bool_t ali_recog_engine_destroy(mrcp_engine_t *engine)
 		apt_task_destroy(task);
 		ali_engine->task = NULL;
 	}
+	apt_log(RECOG_LOG_MARK,APT_PRIO_INFO,"Ali engine destroy");
 	return TRUE;
 }
  
@@ -288,34 +289,34 @@ static apt_bool_t ali_recog_engine_open(mrcp_engine_t *engine)
 	
 	//加载引擎参数
 	if (!engine->config->params) {
-		apt_log(RECOG_LOG_MARK,APT_PRIO_INFO,"Params 'app-key' 'app-id', 'token-secret', '', 'url' must be set");
+		apt_log(RECOG_LOG_MARK,APT_PRIO_WARNING,"Params 'app-key' 'app-id', 'token-secret', '', 'url' must be set");
 		goto NLSERR;
 	}
 
 	value = apr_table_get(engine->config->params, "app-key"); //ali app key
 	if (ZSTR(value)) {
-		apt_log(RECOG_LOG_MARK,APT_PRIO_INFO,"Param 'app-key' is null");
+		apt_log(RECOG_LOG_MARK,APT_PRIO_WARNING,"Param 'app-key' is null");
 		goto NLSERR;
 	}
 	g_appkey = value;
 
 	value = apr_table_get(engine->config->params, "app-id"); //ali app id
 	if (ZSTR(value)) {
-		apt_log(RECOG_LOG_MARK,APT_PRIO_INFO,"Param 'app-id' is null");
+		apt_log(RECOG_LOG_MARK,APT_PRIO_WARNING,"Param 'app-id' is null");
 		goto NLSERR;
 	}
 	g_akId = value;
 
 	value = apr_table_get(engine->config->params, "token-secret"); //ali token secret
 	if (ZSTR(value)) {
-		apt_log(RECOG_LOG_MARK,APT_PRIO_INFO,"Param 'token-secret' is null");
+		apt_log(RECOG_LOG_MARK,APT_PRIO_WARNING,"Param 'token-secret' is null");
 		goto NLSERR;
 	}
 	g_akSecret = value;
 
 	value = apr_table_get(engine->config->params, "url"); //ali url
 	if (ZSTR(value)) {
-		apt_log(RECOG_LOG_MARK,APT_PRIO_INFO,"Param 'url' is null");
+		apt_log(RECOG_LOG_MARK,APT_PRIO_WARNING,"Param 'url' is null");
 		goto NLSERR;
 	}
 	g_aliurl = value;
@@ -404,11 +405,12 @@ static apt_bool_t ali_recog_engine_open(mrcp_engine_t *engine)
 	// 高并发的情况下推荐4, 单请求的情况推荐为1
     // 若高并发CPU占用率较高, 则可填-1启用所有CPU核
 	NlsClient::getInstance()->startWorkThread(workthread);
- 
+	apt_log(RECOG_LOG_MARK,APT_PRIO_INFO,"Load ALi asr Instance sucessed");
 	return mrcp_engine_open_respond(engine,TRUE);
 
 NLSERR:
 	NlsClient::releaseInstance();
+	apt_log(RECOG_LOG_MARK,APT_PRIO_ERROR,"Load ALi asr failed, release instance");
 	return mrcp_engine_open_respond(engine,FALSE);
 }
  
@@ -422,6 +424,7 @@ static apt_bool_t ali_recog_engine_close(mrcp_engine_t *engine)
 	}
  
 	NlsClient::releaseInstance();
+	apt_log(RECOG_LOG_MARK,APT_PRIO_INFO,"Close ALi asr Instance sucessed");
 	return mrcp_engine_close_respond(engine);
 }
  
