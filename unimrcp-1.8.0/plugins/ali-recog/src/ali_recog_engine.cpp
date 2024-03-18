@@ -59,13 +59,14 @@ extern "C" {
 
 #define FORMATLEN 8
 
-#define ZSTR(str) (!str || *str=='')
+#define ZSTR(str) (!str || *str=='\0')
 
 using namespace AlibabaNlsCommon;
 using AlibabaNls::NlsClient;
 using AlibabaNls::NlsEvent;
 using AlibabaNls::LogDebug;
 using AlibabaNls::LogInfo;
+using AlibabaNls::LogWarning;
 using AlibabaNls::LogError;
 using AlibabaNls::SpeechRecognizerRequest;
  
@@ -209,11 +210,11 @@ static apt_bool_t ali_recog_msg_process(apt_task_t *task, apt_task_msg_t *msg);
 
 //inline 
 inline bool strTrue(const char *str) {
-	return str && (!strcasecmp("true", str) || !strcasecmp("yes", str) || !strcasecmp("1", str))
+	return str && (!strcasecmp("true", str) || !strcasecmp("yes", str) || !strcasecmp("1", str));
 }
 
 inline bool strFalse(const char *str) {
-	return !(str && (!strcasecmp("false", str) || !strcasecmp("no", str) || !strcasecmp("0", str)))
+	return !(str && (!strcasecmp("false", str) || !strcasecmp("no", str) || !strcasecmp("0", str)));
 }
 
 /** Declare this macro to set plugin version */
@@ -272,7 +273,7 @@ static apt_bool_t ali_recog_engine_destroy(mrcp_engine_t *engine)
 /** Open recognizer engine */
 static apt_bool_t ali_recog_engine_open(mrcp_engine_t *engine)
 {
-	enum LogLevel loglevel = LogInfo;
+	AlibabaNls::LogLevel loglevel = LogInfo;
 	int logfilesize = 100;
 	int logfilenum = 2;
 	int workthread = 4;
@@ -386,7 +387,7 @@ static apt_bool_t ali_recog_engine_open(mrcp_engine_t *engine)
 
     // 初始化阿里引擎
 	// Set Ali logger
-	if (-1 == NlsClient::getInstance()->setLogConfig(g_alilog_path, loglevel, logfilesize, logfilenum)) {
+	if (-1 == NlsClient::getInstance()->setLogConfig(g_alilog_path.c_str(), loglevel, logfilesize, logfilenum)) {
 		printf("set log failed.\n");
 	   
 		return mrcp_engine_open_respond(engine,FALSE);
@@ -397,7 +398,7 @@ static apt_bool_t ali_recog_engine_open(mrcp_engine_t *engine)
 
 	// Generate a new token
 	if (-1 == generateToken(g_akId, g_akSecret, &g_token, &g_expireTime)) {
-		goto ENGINEERR;
+		goto NLSERR;
 	}
  
 	// 高并发的情况下推荐4, 单请求的情况推荐为1
@@ -856,7 +857,7 @@ static int parse_recognizer_params(apr_table_t *params) {
 	int nTmp = 0;
 	const char *value;
 
-	memset(g_recognizer_params, 0, sizeof(g_recognizer_params));
+	memset(&g_recognizer_params, 0, sizeof(g_recognizer_params));
 	g_recognizer_params.sample_rate = 8000;
 	g_recognizer_params.bvoicedetection = true;
 	g_recognizer_params.maxStartSilence = 3000;
@@ -870,66 +871,66 @@ static int parse_recognizer_params(apr_table_t *params) {
 	//strcpy(g_recognizer_params.format, "pcm");
 	//strcpy(g_recognizer_params.txtFormat, "UTF-8");
 
-	value = apr_table_get(engine->config->params, "audio-format");
+	value = apr_table_get(params, "audio-format");
 	if (value) {
 		if (!strcasecmp(value, "opus") || !strcasecmp(value, "opu") || !strcasecmp(value, "pcm")) {
 			strcpy(g_recognizer_params.format, value);
 		}
 	}
-	value = apr_table_get(engine->config->params, "sample-rate"); 
+	value = apr_table_get(params, "sample-rate"); 
 	if (!ZSTR(value)) {
 		nTmp = atoi(value);
 		if (nTmp > 0) {
 			g_recognizer_params.sample_rate = nTmp;
 		}
 	}
-	value = apr_table_get(engine->config->params, "output-txtcodec");
+	value = apr_table_get(params, "output-txtcodec");
 	if (value) {
 		if (!strcasecmp(value, "UTF-8") || !strcasecmp(value, "GBK")) {
 			strcpy(g_recognizer_params.txtFormat, value);
 		}
 	}
-	value = apr_table_get(engine->config->params, "enable-voice-detection");
+	value = apr_table_get(params, "enable-voice-detection");
 	if (false == strFalse(value)) {
 		g_recognizer_params.bvoicedetection = false;
 	}
-	value = apr_table_get(engine->config->params, "max-start-silence");
+	value = apr_table_get(params, "max-start-silence");
 	if (!ZSTR(value)) {
 		nTmp = atoi(value);
 		if (nTmp > 0) {
 			g_recognizer_params.maxStartSilence = nTmp;
 		}
 	}
-	value = apr_table_get(engine->config->params, "max-end-silence");
+	value = apr_table_get(params, "max-end-silence");
 	if (!ZSTR(value)) {
 		nTmp = atoi(value);
 		if (nTmp > 0) {
 			g_recognizer_params.maxEndSilence = nTmp;
 		}
 	}
-	value = apr_table_get(engine->config->params, "send-timeout");
+	value = apr_table_get(params, "send-timeout");
 	if (!ZSTR(value)) {
 		nTmp = atoi(value);
 		if (nTmp > 0) {
 			g_recognizer_params.sendTimeout = nTmp;
 		}
 	}
-	value = apr_table_get(engine->config->params, "recv-timeout");
+	value = apr_table_get(params, "recv-timeout");
 	if (!ZSTR(value)) {
 		nTmp = atoi(value);
 		if (nTmp > 0) {
 			g_recognizer_params.recvTimeout = nTmp;
 		}
 	}
-	value = apr_table_get(engine->config->params, "enable-intermediate-result");
+	value = apr_table_get(params, "enable-intermediate-result");
 	if (false == strFalse(value)) {
 		g_recognizer_params.bIntermediate = false;
 	}
-	value = apr_table_get(engine->config->params, "enable-punctuation-prediction");
+	value = apr_table_get(params, "enable-punctuation-prediction");
 	if (false == strFalse(value)) {
 		g_recognizer_params.bPunctuation = false;
 	}
-	value = apr_table_get(engine->config->params, "enable-inverse-text-normalization");
+	value = apr_table_get(params, "enable-inverse-text-normalization");
 	if (false == strFalse(value)) {
 		g_recognizer_params.bITN = false;
 	}
