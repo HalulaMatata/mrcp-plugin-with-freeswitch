@@ -12,8 +12,9 @@ UNIMRCP_PLUGIN_INCLUDES += -I$(top_srcdir)/plugins/third-party/NlsCommonSdk/incl
                            -I$(top_srcdir)/plugins/third-party/NlsSdk3.X/include
 alirecog_la_LDFLAGS     += -L$(top_srcdir)/plugins/third-party/NlsCommonSdk/lib \
                            -L$(top_srcdir)/plugins/third-party/NlsSdk3.X/lib \
-                           -lalibabacloud-idst-common
-                           -lalibabacloud-idst-speech
+                           -lalibabacloud-idst-common \
+                           -lalibabacloud-idst-speech \
+                           -lstdc++
 alirecog_ladir          = $(libdir)
 alirecog_la_DATA        = $(top_srcdir)/plugins/third-party/NlsCommonSdk/lib/libalibabacloud-idst-common.so \
                           $(top_srcdir)/plugins/third-party/NlsSdk3.X/lib/libalibabacloud-idst-speech.so
