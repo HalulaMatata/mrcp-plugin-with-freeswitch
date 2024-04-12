@@ -168,6 +168,14 @@ struct ali_recog_engine_t {
 };
  
 /** Declaration of ali recognizer channel */
+typedef enum ali_recog_status_e {
+	ALI_STATU_INIT = 0,
+	ALI_STATU_START,
+	ALI_STATU_FAILED,
+	ALI_STATU_COMPLETE,
+	ALI_STATU_STOP
+}ali_recog_status_e;
+
 struct ali_recog_channel_t {
 	/** Back pointer to engine */
 	ali_recog_engine_t	 *ali_engine;
@@ -187,6 +195,7 @@ struct ali_recog_channel_t {
  
 	/** Ali SpeechRecognizerRequest */
 	int						ch_release;
+	ali_recog_status_e		ali_status;
 	SpeechRecognizerRequest *ali_request;   //阿里SDK的属性
 	/** Ali Recognizer Result */
 	const char			  *result;          //阿里SDK返回结果存储在这
@@ -332,7 +341,7 @@ static apt_bool_t ali_recog_engine_open(mrcp_engine_t *engine)
 	}
 
 	value = apr_table_get(engine->config->params, "log-file"); //日志文件名称
-	if (ZSTR(value)) {
+	if (!ZSTR(value)) {
 		g_alilog_path = value;
 	}
 
@@ -389,8 +398,7 @@ static apt_bool_t ali_recog_engine_open(mrcp_engine_t *engine)
     // 初始化阿里引擎
 	// Set Ali logger
 	if (-1 == NlsClient::getInstance()->setLogConfig(g_alilog_path.c_str(), loglevel, logfilesize, logfilenum)) {
-		printf("set log failed.\n");
-	   
+		apt_log(RECOG_LOG_MARK, APT_PRIO_ERROR, "set log failed.");
 		return mrcp_engine_open_respond(engine,FALSE);
 	}
  
@@ -529,6 +537,10 @@ static apt_bool_t ali_recog_channel_recognize(mrcp_engine_channel_t *channel, mr
 		if(mrcp_resource_header_property_check(request,RECOGNIZER_HEADER_SPEECH_COMPLETE_TIMEOUT) == TRUE) {
 			mpf_activity_detector_silence_timeout_set(recog_channel->detector,recog_header->speech_complete_timeout);
 		}
+		if(mrcp_resource_header_property_check(request,RECOGNIZER_HEADER_SENSITIVITY_LEVEL) == TRUE) {
+			apr_size_t level_threshold = (int)(255.0 * recog_header->sensitivity_level);
+			mpf_activity_detector_level_set(recog_channel->detector, level_threshold & 0xFF);
+		}
 	}
  
 	if(!recog_channel->audio_out) {
@@ -546,12 +558,18 @@ static apt_bool_t ali_recog_channel_recognize(mrcp_engine_channel_t *channel, mr
 		}
 	}
  
+	/*if (0 != checkToken()) {
+		//response->start_line.status_code = MRCP_STATUS_CODE_METHOD_FAILED;
+		return FALSE;
+	}*/
+	g_token = "712ab65db7a8474ea61de149463a627e";
+
 	SpeechRecognizerRequest *ali_request = NlsClient::getInstance()->createRecognizerRequest();
 	recog_channel->ali_request = ali_request;
  
     // 初始化阿里SDK的request
 	if (ali_request == NULL) {
-		printf("createRecognizerRequest failed\n");
+		apt_log(RECOG_LOG_MARK,APT_PRIO_ERROR,"createRecognizerRequest failed!");
 		return FALSE;
 	}
 	ali_request->setOnRecognitionStarted(OnRecognitionStarted, recog_channel);
@@ -565,9 +583,9 @@ static apt_bool_t ali_recog_channel_recognize(mrcp_engine_channel_t *channel, mr
 	ali_request->setIntermediateResult(true);
 	ali_request->setPunctuationPrediction(true);
 	ali_request->setInverseTextNormalization(true);
-	//ali_request->setEnableVoiceDetection(true); 
-	//ali_request->setMaxStartSilence(5000);
-	//ali_request->setMaxEndSilence(800);
+	ali_request->setEnableVoiceDetection(true); 
+	ali_request->setMaxStartSilence(5000); //recog_header->no_input_timeout
+	ali_request->setMaxEndSilence(800); //recog_header->speech_complete_timeout
 	//ali_request->setCustomizationId("TestId_123");
 	//ali_request->setVocabularyId("TestId_456");
 	//ali_request->setPayloadParam("{\"vad_model\": \"farfield\"}");
@@ -579,6 +597,7 @@ static apt_bool_t ali_recog_channel_recognize(mrcp_engine_channel_t *channel, mr
 		recog_channel->ali_request = NULL;
 		return FALSE;
 	}
+	recog_channel->ali_status = ALI_STATU_START;
  
 	response->start_line.request_state = MRCP_REQUEST_STATE_INPROGRESS;
 	/* send asynchronous response */
@@ -641,12 +660,14 @@ static apt_bool_t ali_recog_channel_request_dispatch(mrcp_engine_channel_t *chan
 /** Callback is called from MPF engine context to destroy any additional data associated with audio stream */
 static apt_bool_t ali_recog_stream_destroy(mpf_audio_stream_t *stream)
 {
+	apt_log(RECOG_LOG_MARK,APT_PRIO_DEBUG, "recog stream destroy");
 	return TRUE;
 }
  
 /** Callback is called from MPF engine context to perform any action before open */
 static apt_bool_t ali_recog_stream_open(mpf_audio_stream_t *stream, mpf_codec_t *codec)
 {
+	apt_log(RECOG_LOG_MARK,APT_PRIO_DEBUG, "recog stream open");
 	return TRUE;
 }
  
@@ -678,15 +699,12 @@ static apt_bool_t ali_recog_start_of_input(ali_recog_channel_t *recog_channel)
 static apt_bool_t ali_recog_result_load(ali_recog_channel_t *recog_channel, mrcp_message_t *message)
 {
 	mrcp_engine_channel_t *channel = recog_channel->channel;
-	const apt_dir_layout_t *dir_layout = channel->engine->dir_layout;
-	char *file_path = apt_datadir_filepath_get(dir_layout,"result.xml",message->pool);
-	if(!file_path) {
-		return FALSE;
-	}
-	
 	/* read the ali result from result */
 	mrcp_generic_header_t *generic_header;
- 
+
+	if (NULL == recog_channel->result) {
+		return FALSE;
+	}
 	apt_string_assign_n(&message->body,recog_channel->result,strlen(recog_channel->result),message->pool);
  
 	/* get/allocate generic header */
@@ -756,22 +774,27 @@ static apt_bool_t ali_recog_stream_write(mpf_audio_stream_t *stream, const mpf_f
 			case MPF_DETECTOR_EVENT_INACTIVITY:
 				apt_log(RECOG_LOG_MARK,APT_PRIO_INFO,"Detected Voice Inactivity " APT_SIDRES_FMT,
 					MRCP_MESSAGE_SIDRES(recog_channel->recog_request));
-				//ali_recog_recognition_complete(recog_channel,RECOGNIZER_COMPLETION_CAUSE_SUCCESS);
 				if(recog_channel->ali_request) {
 					recog_channel->ali_request->stop();
 				}
+				ali_recog_recognition_complete(recog_channel,RECOGNIZER_COMPLETION_CAUSE_SUCCESS);
 				break;
 			case MPF_DETECTOR_EVENT_NOINPUT:
 				apt_log(RECOG_LOG_MARK,APT_PRIO_INFO,"Detected Noinput " APT_SIDRES_FMT,
 					MRCP_MESSAGE_SIDRES(recog_channel->recog_request));
 				if(recog_channel->timers_started == TRUE) {
-					//ali_recog_recognition_complete(recog_channel,RECOGNIZER_COMPLETION_CAUSE_NO_INPUT_TIMEOUT);
 					if(recog_channel->ali_request) {
 						recog_channel->ali_request->stop();
 					}
+					ali_recog_recognition_complete(recog_channel,RECOGNIZER_COMPLETION_CAUSE_NO_INPUT_TIMEOUT);
 				}
 				break;
 			default:
+				if (recog_channel->ali_status == ALI_STATU_FAILED) {
+					apt_log(RECOG_LOG_MARK,APT_PRIO_INFO,"ALI_STATU_FAILED " APT_SIDRES_FMT,
+						MRCP_MESSAGE_SIDRES(recog_channel->recog_request));
+					ali_recog_recognition_complete(recog_channel, RECOGNIZER_COMPLETION_CAUSE_ERROR);
+				}
 				break;
 		}
  
@@ -994,12 +1017,12 @@ static int checkToken(void) {
 		if (ret < 0) {
 			apt_log(RECOG_LOG_MARK,APT_PRIO_ERROR,"generate token failed.");
 			return -1;
-		} else {
+		}/* else {
 			if (g_token.empty() || g_expireTime < 0) {
 				apt_log(RECOG_LOG_MARK,APT_PRIO_ERROR,"generate empty token.");
 				return -2;
 			}
-    	}
+    	}*/
   	}
 	return 0;
 }
@@ -1009,43 +1032,55 @@ static int generateToken(std::string akId, std::string akSecret, std::string* to
 	nlsTokenRequest.setAccessKeyId(akId.c_str());
 	nlsTokenRequest.setKeySecret(akSecret.c_str());
  
-	if (-1 == nlsTokenRequest.applyNlsToken()) {
+	if (0 > nlsTokenRequest.applyNlsToken()) {
 		// Get failure reson.
-		printf("generateToken Failed: %s\n", nlsTokenRequest.getErrorMsg());
+		apt_log(RECOG_LOG_MARK,APT_PRIO_ERROR,"generateToken Failed: %s.", nlsTokenRequest.getErrorMsg());
 		return -1;
 	}
  
+	//apt_log(RECOG_LOG_MARK,APT_PRIO_DEBUG, "Token %s. expireTime %ld", (nlsTokenRequest.getToken()).c_str(), nlsTokenRequest.getExpireTime());
 	*token = nlsTokenRequest.getToken();
 	*expireTime = nlsTokenRequest.getExpireTime();
+	apt_log(RECOG_LOG_MARK,APT_PRIO_DEBUG, "Set Token %s  expireTime %ld %s ", token->c_str(), *expireTime, nlsTokenRequest.getErrorMsg());
 	return 0;
 }
  
 void OnRecognitionStarted(NlsEvent* cbEvent, void* recog_channel) {
 	ali_recog_channel_t* tmp_chan = (ali_recog_channel_t*)recog_channel;
-	printf("OnRecognitionStarted: status code=%d, task id=%s\n", cbEvent->getStatusCode(), cbEvent->getTaskId());
+	//printf("OnRecognitionStarted: status code=%d, task id=%s\n", cbEvent->getStatusCode(), cbEvent->getTaskId());
+	apt_log(RECOG_LOG_MARK,APT_PRIO_NOTICE,"OnRecognitionStarted: status code=%d, task id=%s " APT_SIDRES_FMT, cbEvent->getStatusCode(), cbEvent->getTaskId(), 
+		MRCP_MESSAGE_SIDRES(tmp_chan->recog_request));
 }
  
 // 阿里的SDK回调实现
 void OnRecognitionResultChanged(NlsEvent* cbEvent, void* recog_channel) {
 	ali_recog_channel_t* tmp_chan = (ali_recog_channel_t*)recog_channel;
-	printf("OnRecognitionResultChanged: status code=%d, task id=%s, result=%s\n", cbEvent->getStatusCode(), cbEvent->getTaskId(), cbEvent->getResult());
-	tmp_chan->result = cbEvent->getResult();	
+	tmp_chan->result = cbEvent->getResult();
+	//printf("OnRecognitionResultChanged: status code=%d, task id=%s, result=%s\n", cbEvent->getStatusCode(), cbEvent->getTaskId(), cbEvent->getResult());
+	apt_log(RECOG_LOG_MARK,APT_PRIO_DEBUG, "OnRecognitionResultChanged: status code=%d, task id=%s, result=%s", cbEvent->getStatusCode(), cbEvent->getTaskId(), cbEvent->getResult());
 }
  
 void OnRecognitionCompleted(NlsEvent* cbEvent, void* recog_channel) {
 	ali_recog_channel_t* tmp_chan = (ali_recog_channel_t*)recog_channel;
-	printf("OnRecognitionCompleted: status code=%d, task id=%s, result=%s\n", cbEvent->getStatusCode(), cbEvent->getTaskId(), cbEvent->getResult());
-	tmp_chan->result = cbEvent->getResult();	
-	ali_recog_recognition_complete(tmp_chan, RECOGNIZER_COMPLETION_CAUSE_SUCCESS);
+	tmp_chan->result = cbEvent->getResult();
+	tmp_chan->ali_status = ALI_STATU_COMPLETE;
+	//ali_recog_recognition_complete(tmp_chan, RECOGNIZER_COMPLETION_CAUSE_SUCCESS);
+	//printf("OnRecognitionCompleted: status code=%d, task id=%s, result=%s\n", cbEvent->getStatusCode(), cbEvent->getTaskId(), cbEvent->getResult());
+	apt_log(RECOG_LOG_MARK,APT_PRIO_DEBUG, "OnRecognitionCompleted: status code=%d, task id=%s, result=%s", cbEvent->getStatusCode(), cbEvent->getTaskId(), cbEvent->getResult());
 }
  
 void OnRecognitionTaskFailed(NlsEvent* cbEvent, void* recog_channel) {
 	ali_recog_channel_t* tmp_chan = (ali_recog_channel_t*)recog_channel;
-	printf("OnRecognitionTaskFailed: status code=%d, task id=%s, error message=%s\n", cbEvent->getStatusCode(), cbEvent->getTaskId(), cbEvent->getErrorMessage());
+	tmp_chan->ali_status = ALI_STATU_FAILED;
+	//printf("OnRecognitionTaskFailed: status code=%d, task id=%s, error message=%s\n", cbEvent->getStatusCode(), cbEvent->getTaskId(), cbEvent->getErrorMessage());
+	apt_log(RECOG_LOG_MARK,APT_PRIO_ERROR, "OnRecognitionTaskFailed: status code=%d, task id=%s, error message=%s", cbEvent->getStatusCode(), cbEvent->getTaskId(), cbEvent->getErrorMessage());
+	ali_recog_msg_signal(ALI_RECOG_MSG_REQUEST_PROCESS, tmp_chan->mrcp_engine_channel_t, NULL);
 }
  
 void OnRecognitionChannelClosed(NlsEvent* cbEvent, void* recog_channel) {
 	ali_recog_channel_t* tmp_chan = (ali_recog_channel_t*)recog_channel;
 	tmp_chan->ch_release = 1;
-	printf("OnRecognitionChannelClosed: response=%s\n", cbEvent->getAllResponse());
+	//tmp_chan->ali_status = ALI_STATU_STOP;
+	//printf("OnRecognitionChannelClosed: response=%s\n", cbEvent->getAllResponse());
+	apt_log(RECOG_LOG_MARK,APT_PRIO_NOTICE, "OnRecognitionChannelClosed: response=%s", cbEvent->getAllResponse());
 }

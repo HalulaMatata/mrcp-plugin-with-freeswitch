@@ -297,6 +297,10 @@ static apt_bool_t demo_recog_channel_recognize(mrcp_engine_channel_t *channel, m
 		if(mrcp_resource_header_property_check(request,RECOGNIZER_HEADER_SPEECH_COMPLETE_TIMEOUT) == TRUE) {
 			mpf_activity_detector_silence_timeout_set(recog_channel->detector,recog_header->speech_complete_timeout);
 		}
+		if(mrcp_resource_header_property_check(request,RECOGNIZER_HEADER_SENSITIVITY_LEVEL) == TRUE) {
+			apr_size_t level_threshold = (int)(255.0 * recog_header->sensitivity_level);
+			mpf_activity_detector_level_set(recog_channel->detector, level_threshold & 0xFF);
+		}
 	}
 
 	if(!recog_channel->audio_out) {
