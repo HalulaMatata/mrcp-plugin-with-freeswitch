@@ -515,6 +515,8 @@ static apt_bool_t ali_recog_channel_recognize(mrcp_engine_channel_t *channel, mr
 	/* process RECOGNIZE request */
 	mrcp_recog_header_t *recog_header;
 	ali_recog_channel_t *recog_channel = (ali_recog_channel_t *)channel->method_obj;
+	SpeechRecognizerRequest *ali_request = recog_channel->ali_request;
+
 	const mpf_codec_descriptor_t *descriptor = mrcp_engine_sink_stream_codec_get(channel);
  
 	if(!descriptor) {
@@ -559,16 +561,19 @@ static apt_bool_t ali_recog_channel_recognize(mrcp_engine_channel_t *channel, mr
 	}
  
 	/*if (0 != checkToken()) {
+		apt_log(RECOG_LOG_MARK,APT_PRIO_WARNING, "Get token failed." APT_SIDRES_FMT, MRCP_MESSAGE_SIDRES(request));
 		//response->start_line.status_code = MRCP_STATUS_CODE_METHOD_FAILED;
 		return FALSE;
 	}*/
 	g_token = "712ab65db7a8474ea61de149463a627e";
 
-	SpeechRecognizerRequest *ali_request = NlsClient::getInstance()->createRecognizerRequest();
-	recog_channel->ali_request = ali_request;
+	if (NULL == ali_request) {
+		SpeechRecognizerRequest *ali_request = NlsClient::getInstance()->createRecognizerRequest();
+		recog_channel->ali_request = ali_request;
+	}
  
     // 初始化阿里SDK的request
-	if (ali_request == NULL) {
+	if (NULL == ali_request) {
 		apt_log(RECOG_LOG_MARK,APT_PRIO_ERROR,"Create ali recognizer failed!" APT_SIDRES_FMT, MRCP_MESSAGE_SIDRES(request));
 		return FALSE;
 	}
@@ -1060,16 +1065,7 @@ static int checkToken(void) {
 	std::time_t curTime = std::time(0);
 	if (g_expireTime - curTime < 10) {
 		apt_log(RECOG_LOG_MARK,APT_PRIO_INFO, "the token will be expired, get new token by AccessKey-ID and AccessKey-Secret.");
-		int ret = generateToken(g_akId, g_akSecret, &g_token, &g_expireTime);
-		if (ret < 0) {
-			apt_log(RECOG_LOG_MARK,APT_PRIO_ERROR,"generate token failed.");
-			return -1;
-		}/* else {
-			if (g_token.empty() || g_expireTime < 0) {
-				apt_log(RECOG_LOG_MARK,APT_PRIO_ERROR,"generate empty token.");
-				return -2;
-			}
-    	}*/
+		return generateToken(g_akId, g_akSecret, &g_token, &g_expireTime);
   	}
 	return 0;
 }
@@ -1084,8 +1080,7 @@ static int generateToken(std::string akId, std::string akSecret, std::string* to
 		apt_log(RECOG_LOG_MARK,APT_PRIO_ERROR,"generateToken Failed: %s.", nlsTokenRequest.getErrorMsg());
 		return -1;
 	}
- 
-	//apt_log(RECOG_LOG_MARK,APT_PRIO_DEBUG, "Token %s. expireTime %ld", (nlsTokenRequest.getToken()).c_str(), nlsTokenRequest.getExpireTime());
+
 	*token = nlsTokenRequest.getToken();
 	*expireTime = nlsTokenRequest.getExpireTime();
 	apt_log(RECOG_LOG_MARK,APT_PRIO_DEBUG, "Set Token %s  expireTime %ld %s ", token->c_str(), *expireTime, nlsTokenRequest.getErrorMsg());
