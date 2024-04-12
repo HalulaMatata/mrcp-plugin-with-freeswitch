@@ -173,7 +173,7 @@ typedef enum ali_recog_status_e {
 	ALI_STATU_START,
 	ALI_STATU_FAILED,
 	ALI_STATU_COMPLETE,
-	ALI_STATU_STOP
+	//ALI_STATU_STOP
 }ali_recog_status_e;
 
 struct ali_recog_channel_t {
@@ -569,7 +569,7 @@ static apt_bool_t ali_recog_channel_recognize(mrcp_engine_channel_t *channel, mr
  
     // 初始化阿里SDK的request
 	if (ali_request == NULL) {
-		apt_log(RECOG_LOG_MARK,APT_PRIO_ERROR,"createRecognizerRequest failed!");
+		apt_log(RECOG_LOG_MARK,APT_PRIO_ERROR,"Create ali recognizer failed!" APT_SIDRES_FMT, MRCP_MESSAGE_SIDRES(request));
 		return FALSE;
 	}
 	ali_request->setOnRecognitionStarted(OnRecognitionStarted, recog_channel);
@@ -578,6 +578,8 @@ static apt_bool_t ali_recog_channel_recognize(mrcp_engine_channel_t *channel, mr
 	ali_request->setOnRecognitionResultChanged(OnRecognitionResultChanged, recog_channel);
 	ali_request->setOnRecognitionCompleted(OnRecognitionCompleted, recog_channel);
 	ali_request->setAppKey(g_appkey.c_str());
+	ali_request->setToken(g_token.c_str()); // 设置账号校验token。必填参数。
+	#if 0
 	ali_request->setFormat("pcm");
 	ali_request->setSampleRate(SAMPLE_RATE_16K);
 	ali_request->setIntermediateResult(true);
@@ -589,16 +591,57 @@ static apt_bool_t ali_recog_channel_recognize(mrcp_engine_channel_t *channel, mr
 	//ali_request->setCustomizationId("TestId_123");
 	//ali_request->setVocabularyId("TestId_456");
 	//ali_request->setPayloadParam("{\"vad_model\": \"farfield\"}");
-	ali_request->setToken(g_token.c_str()); // 设置账号校验token。必填参数。
- 
+	#endif
+	//设置音频数据编码格式 PCM、OPUS、OPU，默认是PCM
+	if (!ZSTR(g_recognizer_params.format)) {
+		ali_request->setFormat(g_recognizer_params.format);
+	}
+	// 设置输出文本的编码格式, 默认是utf-8
+	if (!ZSTR(g_recognizer_params.txtFormat)) {
+		ali_request->setOutputFormat(g_recognizer_params.txtFormat);
+	}
+    // 设置音频数据采样率, 可选参数, 目前支持16000, 8000. 默认是16000
+    ali_request->setSampleRate(g_recognizer_params.sample_rate);
+    // 设置是否返回中间识别结果, 可选参数. 默认false
+    ali_request->setIntermediateResult(g_recognizer_params.bIntermediate);
+    // 设置是否在后处理中添加标点, 可选参数. 默认false
+    ali_request->setPunctuationPrediction(g_recognizer_params.bPunctuation);
+    // 设置是否在后处理中执行ITN, 可选参数. 默认false
+    ali_request->setInverseTextNormalization(g_recognizer_params.bITN);
+
+	//开启静音检测，默认开启
+	if (g_recognizer_params.bvoicedetection) {
+		ali_request->setEnableVoiceDetection(true);
+    	// 允许的最大开始静音, 可选, 单位是毫秒, 
+    	// 超出后服务端将会发送RecognitionCompleted事件, 结束本次识别.
+    	// 注意: 需要先设置enable_voice_detection为true
+    	ali_request->setMaxStartSilence(g_recognizer_params.maxStartSilence);
+    	// 允许的最大结束静音, 可选, 单位是毫秒, 
+    	// 超出后服务端将会发送RecognitionCompleted事件, 结束本次识别.
+    	// 注意: 需要先设置 enable_voice_detection 为true
+    	ali_request->setMaxEndSilence(g_recognizer_params.maxEndSilence);
+	}
+
+	//设置发送超时时间，默认5000ms
+	if (g_recognizer_params.sendTimeout > 0) {
+		ali_request->setSendTimeout(g_recognizer_params.sendTimeout);
+	}
+
+	//设置接收超时时间， 默认15000ms，需setEnableRecvTimeout开启后生效
+	if (g_recognizer_params.recvTimeout > 0) {
+		ali_request->setEnableRecvTimeout(true);
+		ali_request->setRecvTimeout(g_recognizer_params.recvTimeout);
+	}
+
+	//开始识别请求
 	if (ali_request->start() < 0) {
-		printf("start() failed. may be can not connect server. please check network or firewalld\n");
+		apt_log(RECOG_LOG_MARK, APT_PRIO_ERROR,"Ali start() failed. may be can not connect server. please check network or firewalld!" APT_SIDRES_FMT, MRCP_MESSAGE_SIDRES(request));
 		NlsClient::getInstance()->releaseRecognizerRequest(recog_channel->ali_request);
 		recog_channel->ali_request = NULL;
 		return FALSE;
 	}
 	recog_channel->ali_status = ALI_STATU_START;
- 
+
 	response->start_line.request_state = MRCP_REQUEST_STATE_INPROGRESS;
 	/* send asynchronous response */
 	mrcp_engine_channel_message_send(channel,response);
@@ -711,7 +754,8 @@ static apt_bool_t ali_recog_result_load(ali_recog_channel_t *recog_channel, mrcp
 	generic_header = mrcp_generic_header_prepare(message);
 	if(generic_header) {
 		/* set content types */
-		apt_string_assign(&generic_header->content_type,"application/x-nlsml",message->pool);
+		//apt_string_assign(&generic_header->content_type,"application/json;charset=UTF-8",message->pool);
+		apt_string_assign(&generic_header->content_type,"text/plain;charset=UTF-8",message->pool);
 		mrcp_generic_header_property_add(message,GENERIC_HEADER_CONTENT_TYPE);
 	}
  
@@ -861,7 +905,10 @@ static apt_bool_t ali_recog_msg_process(apt_task_t *task, apt_task_msg_t *msg)
 				fclose(recog_channel->audio_out);
 				recog_channel->audio_out = NULL;
 			}
-			if (recog_channel->ali_request && recog_channel->ch_release) {
+			if (recog_channel->ali_request) {
+				if (ALI_STATU_START == recog_channel->ali_status) {
+					recog_channel->ali_request->cancel();
+				}
 				NlsClient::getInstance()->releaseRecognizerRequest(recog_channel->ali_request);
 				recog_channel->ali_request = NULL;
 			}
@@ -966,7 +1013,7 @@ static int parse_recognizer_params(apr_table_t *params) {
 	if (!ZSTR(g_recognizer_params.format)) {
 		request->setFormat(g_recognizer_params.format);
 	}
-	// 设置输出文本的编码格式
+	// 设置输出文本的编码格式, 默认是utf-8
 	if (!ZSTR(g_recognizer_params.txtFormat)) {
 		request->setOutputFormat(g_recognizer_params.txtFormat);
 	}
@@ -1047,6 +1094,7 @@ static int generateToken(std::string akId, std::string akSecret, std::string* to
  
 void OnRecognitionStarted(NlsEvent* cbEvent, void* recog_channel) {
 	ali_recog_channel_t* tmp_chan = (ali_recog_channel_t*)recog_channel;
+	tmp_chan->ali_status = ALI_STATU_START;
 	//printf("OnRecognitionStarted: status code=%d, task id=%s\n", cbEvent->getStatusCode(), cbEvent->getTaskId());
 	apt_log(RECOG_LOG_MARK,APT_PRIO_NOTICE,"OnRecognitionStarted: status code=%d, task id=%s " APT_SIDRES_FMT, cbEvent->getStatusCode(), cbEvent->getTaskId(), 
 		MRCP_MESSAGE_SIDRES(tmp_chan->recog_request));
@@ -1074,7 +1122,6 @@ void OnRecognitionTaskFailed(NlsEvent* cbEvent, void* recog_channel) {
 	tmp_chan->ali_status = ALI_STATU_FAILED;
 	//printf("OnRecognitionTaskFailed: status code=%d, task id=%s, error message=%s\n", cbEvent->getStatusCode(), cbEvent->getTaskId(), cbEvent->getErrorMessage());
 	apt_log(RECOG_LOG_MARK,APT_PRIO_ERROR, "OnRecognitionTaskFailed: status code=%d, task id=%s, error message=%s", cbEvent->getStatusCode(), cbEvent->getTaskId(), cbEvent->getErrorMessage());
-	ali_recog_msg_signal(ALI_RECOG_MSG_REQUEST_PROCESS, tmp_chan->mrcp_engine_channel_t, NULL);
 }
  
 void OnRecognitionChannelClosed(NlsEvent* cbEvent, void* recog_channel) {
