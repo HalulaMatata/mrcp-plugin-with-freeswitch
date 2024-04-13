@@ -867,6 +867,11 @@ static apt_bool_t ali_recog_stream_write(mpf_audio_stream_t *stream, const mpf_f
 					apt_log(RECOG_LOG_MARK,APT_PRIO_INFO,"ALI_STATU_FAILED_SILENT_SPEECH " APT_SIDRES_FMT, MRCP_MESSAGE_SIDRES(recog_channel->recog_request));
 					ali_recog_recognition_complete(recog_channel,RECOGNIZER_COMPLETION_CAUSE_NO_INPUT_TIMEOUT);
 				}
+				else if (recog_channel->ali_status == ALI_STATU_COMPLETE && recog_channel->result) {
+					//阿里识别结果比mrcp的静音效果提前返回
+					apt_log(RECOG_LOG_MARK,APT_PRIO_INFO,"ALI_STATU_COMPLETE " APT_SIDRES_FMT, MRCP_MESSAGE_SIDRES(recog_channel->recog_request));
+					ali_recog_recognition_complete(recog_channel,RECOGNIZER_COMPLETION_CAUSE_SUCCESS);
+				}
 				break;
 		}
  
