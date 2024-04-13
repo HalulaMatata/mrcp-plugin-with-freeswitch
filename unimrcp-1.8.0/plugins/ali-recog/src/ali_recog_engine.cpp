@@ -613,7 +613,11 @@ static apt_bool_t ali_recog_channel_recognize(mrcp_engine_channel_t *channel, mr
 		ali_request->setOutputFormat(g_recognizer_params.txtFormat);
 	}
     // 设置音频数据采样率, 可选参数, 目前支持16000, 8000. 默认是16000
-    ali_request->setSampleRate(g_recognizer_params.sample_rate);
+	if (8000 == descriptor->sampling_rate || 16000 == descriptor->sampling_rate)
+		ali_request->setSampleRate(descriptor->sampling_rate);
+	else 
+		ali_request->setSampleRate(g_recognizer_params.sample_rate);
+
     // 设置是否返回中间识别结果, 可选参数. 默认false
     ali_request->setIntermediateResult(g_recognizer_params.bIntermediate);
     // 设置是否在后处理中添加标点, 可选参数. 默认false
