@@ -51,6 +51,8 @@ extern "C" {
 #include "speechRecognizerRequest.h"
 #include "Token.h"
 
+#define RECOG_ID_LEN 32
+
 #define FRAME_16K_20MS 640
 #define SAMPLE_RATE_16K 16000
 #define DEFAULT_STRING_LEN 512
@@ -172,6 +174,7 @@ typedef enum ali_recog_status_e {
 	ALI_STATU_INIT = 0,
 	ALI_STATU_START,
 	ALI_STATU_FAILED,
+	ALI_STATU_FAILED_SILENT_SPEECH,
 	ALI_STATU_COMPLETE,
 	//ALI_STATU_STOP
 }ali_recog_status_e;
@@ -199,6 +202,7 @@ struct ali_recog_channel_t {
 	SpeechRecognizerRequest *ali_request;   //阿里SDK的属性
 	/** Ali Recognizer Result */
 	const char			  *result;          //阿里SDK返回结果存储在这
+	char 				recog_id[RECOG_ID_LEN]; //保存RECOG 通道id
 };
  
 typedef enum {
@@ -298,7 +302,7 @@ static apt_bool_t ali_recog_engine_open(mrcp_engine_t *engine)
 	
 	//加载引擎参数
 	if (!engine->config->params) {
-		apt_log(RECOG_LOG_MARK,APT_PRIO_WARNING,"Params 'app-key' 'app-id', 'token-secret', '', 'url' must be set");
+		apt_log(RECOG_LOG_MARK,APT_PRIO_WARNING,"Params 'app-key' 'app-id', 'app-keys-secret', '', 'url' must be set");
 		goto NLSERR;
 	}
 
@@ -316,9 +320,9 @@ static apt_bool_t ali_recog_engine_open(mrcp_engine_t *engine)
 	}
 	g_akId = value;
 
-	value = apr_table_get(engine->config->params, "token-secret"); //ali token secret
+	value = apr_table_get(engine->config->params, "app-keys-secret"); //ali app key secret
 	if (ZSTR(value)) {
-		apt_log(RECOG_LOG_MARK,APT_PRIO_WARNING,"Param 'token-secret' is null");
+		apt_log(RECOG_LOG_MARK,APT_PRIO_WARNING,"Param 'app-keys-secret' is null");
 		goto NLSERR;
 	}
 	g_akSecret = value;
@@ -568,15 +572,18 @@ static apt_bool_t ali_recog_channel_recognize(mrcp_engine_channel_t *channel, mr
 	g_token = "712ab65db7a8474ea61de149463a627e";
 
 	if (NULL == ali_request) {
-		SpeechRecognizerRequest *ali_request = NlsClient::getInstance()->createRecognizerRequest();
+		ali_request = NlsClient::getInstance()->createRecognizerRequest();
 		recog_channel->ali_request = ali_request;
 	}
  
     // 初始化阿里SDK的request
 	if (NULL == ali_request) {
+		response->start_line.status_code = MRCP_STATUS_CODE_METHOD_FAILED;
 		apt_log(RECOG_LOG_MARK,APT_PRIO_ERROR,"Create ali recognizer failed!" APT_SIDRES_FMT, MRCP_MESSAGE_SIDRES(request));
 		return FALSE;
 	}
+
+	recog_channel->ali_status = ALI_STATU_INIT;
 	ali_request->setOnRecognitionStarted(OnRecognitionStarted, recog_channel);
 	ali_request->setOnTaskFailed(OnRecognitionTaskFailed, recog_channel);
 	ali_request->setOnChannelClosed(OnRecognitionChannelClosed, recog_channel);
@@ -620,11 +627,22 @@ static apt_bool_t ali_recog_channel_recognize(mrcp_engine_channel_t *channel, mr
     	// 允许的最大开始静音, 可选, 单位是毫秒, 
     	// 超出后服务端将会发送RecognitionCompleted事件, 结束本次识别.
     	// 注意: 需要先设置enable_voice_detection为true
-    	ali_request->setMaxStartSilence(g_recognizer_params.maxStartSilence);
+		ali_request->setMaxStartSilence(g_recognizer_params.maxStartSilence);
+		
     	// 允许的最大结束静音, 可选, 单位是毫秒, 
     	// 超出后服务端将会发送RecognitionCompleted事件, 结束本次识别.
     	// 注意: 需要先设置 enable_voice_detection 为true
     	ali_request->setMaxEndSilence(g_recognizer_params.maxEndSilence);
+
+		//动态调整mrcp的静音检测时间,单位必须统一ms
+		if (recog_header) {
+			if (recog_header->no_input_timeout > g_recognizer_params.maxStartSilence) {
+				ali_request->setMaxStartSilence(recog_header->no_input_timeout + 300);
+			}
+			if (recog_header->speech_complete_timeout > g_recognizer_params.maxEndSilence) {
+				ali_request->setMaxEndSilence(recog_header->speech_complete_timeout);
+			}
+		}
 	}
 
 	//设置发送超时时间，默认5000ms
@@ -639,13 +657,15 @@ static apt_bool_t ali_recog_channel_recognize(mrcp_engine_channel_t *channel, mr
 	}
 
 	//开始识别请求
+	snprintf(recog_channel->recog_id, RECOG_ID_LEN, APT_SIDRES_FMT, MRCP_MESSAGE_SIDRES(request));
 	if (ali_request->start() < 0) {
 		apt_log(RECOG_LOG_MARK, APT_PRIO_ERROR,"Ali start() failed. may be can not connect server. please check network or firewalld!" APT_SIDRES_FMT, MRCP_MESSAGE_SIDRES(request));
 		NlsClient::getInstance()->releaseRecognizerRequest(recog_channel->ali_request);
 		recog_channel->ali_request = NULL;
+		response->start_line.status_code = MRCP_STATUS_CODE_METHOD_FAILED;
 		return FALSE;
 	}
-	recog_channel->ali_status = ALI_STATU_START;
+	//recog_channel->ali_status = ALI_STATU_START;
 
 	response->start_line.request_state = MRCP_REQUEST_STATE_INPROGRESS;
 	/* send asynchronous response */
@@ -759,8 +779,8 @@ static apt_bool_t ali_recog_result_load(ali_recog_channel_t *recog_channel, mrcp
 	generic_header = mrcp_generic_header_prepare(message);
 	if(generic_header) {
 		/* set content types */
-		//apt_string_assign(&generic_header->content_type,"application/json;charset=UTF-8",message->pool);
-		apt_string_assign(&generic_header->content_type,"text/plain;charset=UTF-8",message->pool);
+		apt_string_assign(&generic_header->content_type,"application/json;charset=UTF-8",message->pool);
+		//apt_string_assign(&generic_header->content_type,"text/plain;charset=UTF-8",message->pool);
 		mrcp_generic_header_property_add(message,GENERIC_HEADER_CONTENT_TYPE);
 	}
  
@@ -840,9 +860,12 @@ static apt_bool_t ali_recog_stream_write(mpf_audio_stream_t *stream, const mpf_f
 				break;
 			default:
 				if (recog_channel->ali_status == ALI_STATU_FAILED) {
-					apt_log(RECOG_LOG_MARK,APT_PRIO_INFO,"ALI_STATU_FAILED " APT_SIDRES_FMT,
-						MRCP_MESSAGE_SIDRES(recog_channel->recog_request));
-					ali_recog_recognition_complete(recog_channel, RECOGNIZER_COMPLETION_CAUSE_ERROR);
+					apt_log(RECOG_LOG_MARK,APT_PRIO_INFO,"ALI_STATU_FAILED " APT_SIDRES_FMT, MRCP_MESSAGE_SIDRES(recog_channel->recog_request));
+					ali_recog_recognition_complete(recog_channel,RECOGNIZER_COMPLETION_CAUSE_NO_MATCH);
+				}
+				else if (recog_channel->ali_status == ALI_STATU_FAILED_SILENT_SPEECH) {
+					apt_log(RECOG_LOG_MARK,APT_PRIO_INFO,"ALI_STATU_FAILED_SILENT_SPEECH " APT_SIDRES_FMT, MRCP_MESSAGE_SIDRES(recog_channel->recog_request));
+					ali_recog_recognition_complete(recog_channel,RECOGNIZER_COMPLETION_CAUSE_NO_INPUT_TIMEOUT);
 				}
 				break;
 		}
@@ -938,8 +961,8 @@ static int parse_recognizer_params(apr_table_t *params) {
 	memset(&g_recognizer_params, 0, sizeof(g_recognizer_params));
 	g_recognizer_params.sample_rate = 8000;
 	g_recognizer_params.bvoicedetection = true;
-	g_recognizer_params.maxStartSilence = 3000;
-	g_recognizer_params.maxEndSilence = 200;
+	g_recognizer_params.maxStartSilence = 5300;
+	g_recognizer_params.maxEndSilence = 300;
 	g_recognizer_params.sendTimeout = 5000;	//ms
 	g_recognizer_params.recvTimeout = 0;	//15000ms
 	g_recognizer_params.bIntermediate = true;
@@ -1090,33 +1113,38 @@ static int generateToken(std::string akId, std::string akSecret, std::string* to
 void OnRecognitionStarted(NlsEvent* cbEvent, void* recog_channel) {
 	ali_recog_channel_t* tmp_chan = (ali_recog_channel_t*)recog_channel;
 	tmp_chan->ali_status = ALI_STATU_START;
-	//printf("OnRecognitionStarted: status code=%d, task id=%s\n", cbEvent->getStatusCode(), cbEvent->getTaskId());
-	apt_log(RECOG_LOG_MARK,APT_PRIO_NOTICE,"OnRecognitionStarted: status code=%d, task id=%s " APT_SIDRES_FMT, cbEvent->getStatusCode(), cbEvent->getTaskId(), 
-		MRCP_MESSAGE_SIDRES(tmp_chan->recog_request));
+	apt_log(RECOG_LOG_MARK,APT_PRIO_NOTICE,"OnRecognitionStarted %s: status code=%d, task id=%s ", tmp_chan->recog_id, cbEvent->getStatusCode(), cbEvent->getTaskId());
 }
  
 // 阿里的SDK回调实现
 void OnRecognitionResultChanged(NlsEvent* cbEvent, void* recog_channel) {
 	ali_recog_channel_t* tmp_chan = (ali_recog_channel_t*)recog_channel;
-	tmp_chan->result = cbEvent->getResult();
-	//printf("OnRecognitionResultChanged: status code=%d, task id=%s, result=%s\n", cbEvent->getStatusCode(), cbEvent->getTaskId(), cbEvent->getResult());
-	apt_log(RECOG_LOG_MARK,APT_PRIO_DEBUG, "OnRecognitionResultChanged: status code=%d, task id=%s, result=%s", cbEvent->getStatusCode(), cbEvent->getTaskId(), cbEvent->getResult());
+	//tmp_chan->result = cbEvent->getResult();
+	tmp_chan->result = cbEvent->getAllResponse();
+
+	//apt_log(RECOG_LOG_MARK,APT_PRIO_DEBUG, "OnRecognitionResultChanged: status code=%d, task id=%s, result=%s", cbEvent->getStatusCode(), cbEvent->getTaskId(), cbEvent->getResult());
+	apt_log(RECOG_LOG_MARK,APT_PRIO_DEBUG, "OnRecognitionResultChanged: status code=%d, task id=%s, result=%s", cbEvent->getStatusCode(), cbEvent->getTaskId(), cbEvent->getAllResponse());
 }
  
 void OnRecognitionCompleted(NlsEvent* cbEvent, void* recog_channel) {
 	ali_recog_channel_t* tmp_chan = (ali_recog_channel_t*)recog_channel;
-	tmp_chan->result = cbEvent->getResult();
+	//tmp_chan->result = cbEvent->getResult();
+	tmp_chan->result = cbEvent->getAllResponse();
 	tmp_chan->ali_status = ALI_STATU_COMPLETE;
 	//ali_recog_recognition_complete(tmp_chan, RECOGNIZER_COMPLETION_CAUSE_SUCCESS);
 	//printf("OnRecognitionCompleted: status code=%d, task id=%s, result=%s\n", cbEvent->getStatusCode(), cbEvent->getTaskId(), cbEvent->getResult());
-	apt_log(RECOG_LOG_MARK,APT_PRIO_DEBUG, "OnRecognitionCompleted: status code=%d, task id=%s, result=%s", cbEvent->getStatusCode(), cbEvent->getTaskId(), cbEvent->getResult());
+	//apt_log(RECOG_LOG_MARK,APT_PRIO_DEBUG, "OnRecognitionCompleted: status code=%d, task id=%s, result=%s", cbEvent->getStatusCode(), cbEvent->getTaskId(), cbEvent->getResult());
+	apt_log(RECOG_LOG_MARK,APT_PRIO_DEBUG, "OnRecognitionCompleted: status code=%d, task id=%s, result=%s", cbEvent->getStatusCode(), cbEvent->getTaskId(), cbEvent->getAllResponse());
 }
  
 void OnRecognitionTaskFailed(NlsEvent* cbEvent, void* recog_channel) {
 	ali_recog_channel_t* tmp_chan = (ali_recog_channel_t*)recog_channel;
 	tmp_chan->ali_status = ALI_STATU_FAILED;
-	//printf("OnRecognitionTaskFailed: status code=%d, task id=%s, error message=%s\n", cbEvent->getStatusCode(), cbEvent->getTaskId(), cbEvent->getErrorMessage());
-	apt_log(RECOG_LOG_MARK,APT_PRIO_ERROR, "OnRecognitionTaskFailed: status code=%d, task id=%s, error message=%s", cbEvent->getStatusCode(), cbEvent->getTaskId(), cbEvent->getErrorMessage());
+	if (41010105 == cbEvent->getStatusCode()) {
+		tmp_chan->ali_status = ALI_STATU_FAILED_SILENT_SPEECH;
+	}
+
+	apt_log(RECOG_LOG_MARK,APT_PRIO_ERROR, "OnRecognitionTaskFailed %s: status code=%d, task id=%s, error message=%s", tmp_chan->recog_id, cbEvent->getStatusCode(), cbEvent->getTaskId(), cbEvent->getErrorMessage());
 }
  
 void OnRecognitionChannelClosed(NlsEvent* cbEvent, void* recog_channel) {
