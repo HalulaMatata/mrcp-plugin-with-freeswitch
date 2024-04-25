@@ -105,6 +105,7 @@ std::string g_api_version = "";
 std::string g_aliurl = "";
 std::string g_alilog_path = "alirecog.log";
 
+static bool g_savepcm = false;
 static long g_expireTime = -1;
 static RecognizerParam_t g_recognizer_params;
 
@@ -172,6 +173,7 @@ struct ali_recog_engine_t {
 /** Declaration of ali recognizer channel */
 typedef enum ali_recog_status_e {
 	ALI_STATU_INIT = 0,
+	ALI_STATU_READY,
 	ALI_STATU_START,
 	ALI_STATU_FAILED,
 	ALI_STATU_FAILED_SILENT_SPEECH,
@@ -397,6 +399,9 @@ static apt_bool_t ali_recog_engine_open(mrcp_engine_t *engine)
 		}
 	}
 
+	value = apr_table_get(engine->config->params, "save-pcm");
+	g_savepcm = strTrue(value);
+
 	parse_recognizer_params(engine->config->params);
 
     // 初始化阿里引擎
@@ -549,7 +554,7 @@ static apt_bool_t ali_recog_channel_recognize(mrcp_engine_channel_t *channel, mr
 		}
 	}
  
-	if(!recog_channel->audio_out) {
+	if(!recog_channel->audio_out &&  true == g_savepcm) {
 		const apt_dir_layout_t *dir_layout = channel->engine->dir_layout;
 		char *file_name = apr_psprintf(channel->pool,"utter-%dkHz-%s.pcm",
 							descriptor->sampling_rate/1000,
@@ -564,12 +569,12 @@ static apt_bool_t ali_recog_channel_recognize(mrcp_engine_channel_t *channel, mr
 		}
 	}
  
-	/*if (0 != checkToken()) {
+	if (0 != checkToken()) {
 		apt_log(RECOG_LOG_MARK,APT_PRIO_WARNING, "Get token failed." APT_SIDRES_FMT, MRCP_MESSAGE_SIDRES(request));
-		//response->start_line.status_code = MRCP_STATUS_CODE_METHOD_FAILED;
+		response->start_line.status_code = MRCP_STATUS_CODE_METHOD_FAILED;
 		return FALSE;
-	}*/
-	g_token = "712ab65db7a8474ea61de149463a627e";
+	}
+	//g_token = "6e4643aa2bb4423eaccc3930ee16965d";
 
 	if (NULL == ali_request) {
 		ali_request = NlsClient::getInstance()->createRecognizerRequest();
@@ -644,7 +649,7 @@ static apt_bool_t ali_recog_channel_recognize(mrcp_engine_channel_t *channel, mr
 				ali_request->setMaxStartSilence(recog_header->no_input_timeout + 300);
 			}
 			if (recog_header->speech_complete_timeout > g_recognizer_params.maxEndSilence) {
-				ali_request->setMaxEndSilence(recog_header->speech_complete_timeout);
+				ali_request->setMaxEndSilence(recog_header->speech_complete_timeout+50);
 			}
 		}
 	}
@@ -660,14 +665,27 @@ static apt_bool_t ali_recog_channel_recognize(mrcp_engine_channel_t *channel, mr
 		ali_request->setRecvTimeout(g_recognizer_params.recvTimeout);
 	}
 
+	apt_log(RECOG_LOG_MARK, APT_PRIO_DEBUG,"Ali default maxStartSilence maxEndSilence %d - %d ，recog_header %d - %d!" APT_SIDRES_FMT,
+		g_recognizer_params.maxStartSilence, g_recognizer_params.maxEndSilence,
+		recog_header?recog_header->no_input_timeout + 300:5000,
+		recog_header?recog_header->speech_complete_timeout + 50:300,
+		MRCP_MESSAGE_SIDRES(request));
 	//开始识别请求
 	snprintf(recog_channel->recog_id, RECOG_ID_LEN, APT_SIDRES_FMT, MRCP_MESSAGE_SIDRES(request));
-	if (ali_request->start() < 0) {
-		apt_log(RECOG_LOG_MARK, APT_PRIO_ERROR,"Ali start() failed. may be can not connect server. please check network or firewalld!" APT_SIDRES_FMT, MRCP_MESSAGE_SIDRES(request));
-		NlsClient::getInstance()->releaseRecognizerRequest(recog_channel->ali_request);
-		recog_channel->ali_request = NULL;
-		response->start_line.status_code = MRCP_STATUS_CODE_METHOD_FAILED;
-		return FALSE;
+	if (TRUE == recog_channel->timers_started) {
+		if (ali_request->start() < 0) {
+			if (ALI_STATU_START != recog_channel->ali_status) {
+				apt_log(RECOG_LOG_MARK, APT_PRIO_ERROR,"Ali start() failed. may be can not connect server. please check network or firewalld!" APT_SIDRES_FMT, MRCP_MESSAGE_SIDRES(request));
+				NlsClient::getInstance()->releaseRecognizerRequest(recog_channel->ali_request);
+				recog_channel->ali_request = NULL;
+				response->start_line.status_code = MRCP_STATUS_CODE_METHOD_FAILED;
+				return FALSE;
+			}
+		}
+	}
+	else {
+		recog_channel->ali_status = ALI_STATU_READY;
+		apt_log(RECOG_LOG_MARK, APT_PRIO_NOTICE,"Ali change status to ALI_STATU_READY" APT_SIDRES_FMT, MRCP_MESSAGE_SIDRES(request));
 	}
 	//recog_channel->ali_status = ALI_STATU_START;
 
@@ -693,6 +711,14 @@ static apt_bool_t ali_recog_channel_timers_start(mrcp_engine_channel_t *channel,
 {
 	ali_recog_channel_t *recog_channel = (ali_recog_channel_t *)channel->method_obj;
 	recog_channel->timers_started = TRUE;
+	if (recog_channel->ali_request && ALI_STATU_READY == recog_channel->ali_status) {
+		apt_log(RECOG_LOG_MARK, APT_PRIO_DEBUG,"Ali change ALI_STATU_READY to start()!" APT_SIDRES_FMT, MRCP_MESSAGE_SIDRES(request));
+		if (recog_channel->ali_request->start() < 0) {
+			apt_log(RECOG_LOG_MARK, APT_PRIO_ERROR,"Ali start() failed. may be can not connect server. please check network or firewalld !" APT_SIDRES_FMT,
+				MRCP_MESSAGE_SIDRES(request));
+			return FALSE;
+		}
+	}
 	return mrcp_engine_channel_message_send(channel,response);
 }
  
@@ -842,6 +868,14 @@ static apt_bool_t ali_recog_stream_write(mpf_audio_stream_t *stream, const mpf_f
 			case MPF_DETECTOR_EVENT_ACTIVITY:
 				apt_log(RECOG_LOG_MARK,APT_PRIO_INFO,"Detected Voice Activity " APT_SIDRES_FMT,
 					MRCP_MESSAGE_SIDRES(recog_channel->recog_request));
+				if (recog_channel->ali_request && ALI_STATU_READY == recog_channel->ali_status) {
+					apt_log(RECOG_LOG_MARK, APT_PRIO_DEBUG,"Ali change ALI_STATU_READY to start()!" APT_SIDRES_FMT, MRCP_MESSAGE_SIDRES(recog_channel->recog_request));
+					if (recog_channel->ali_request->start() < 0) {
+						apt_log(RECOG_LOG_MARK, APT_PRIO_ERROR,"Ali start() failed. may be can not connect server. please check network or firewalld!" APT_SIDRES_FMT,
+							MRCP_MESSAGE_SIDRES(recog_channel->recog_request));
+						return FALSE;
+					}
+				}
 				ali_recog_start_of_input(recog_channel);
 				break;
 			case MPF_DETECTOR_EVENT_INACTIVITY:
@@ -971,7 +1005,7 @@ static int parse_recognizer_params(apr_table_t *params) {
 	g_recognizer_params.sample_rate = 8000;
 	g_recognizer_params.bvoicedetection = true;
 	g_recognizer_params.maxStartSilence = 5300;
-	g_recognizer_params.maxEndSilence = 300;
+	g_recognizer_params.maxEndSilence = 350;
 	g_recognizer_params.sendTimeout = 5000;	//ms
 	g_recognizer_params.recvTimeout = 0;	//15000ms
 	g_recognizer_params.bIntermediate = true;
