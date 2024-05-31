@@ -49,7 +49,7 @@ extern "C" {
 #include "nlsClient.h"
 #include "nlsEvent.h"
 #include "speechRecognizerRequest.h"
-#include "Token.h"
+#include "nlsToken"
 
 #define RECOG_ID_LEN 32
 
