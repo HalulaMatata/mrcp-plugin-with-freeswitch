@@ -579,6 +579,10 @@ static apt_bool_t ali_recog_channel_recognize(mrcp_engine_channel_t *channel, mr
 	if (NULL == ali_request) {
 		ali_request = NlsClient::getInstance()->createRecognizerRequest();
 		recog_channel->ali_request = ali_request;
+		if (ali_request && !g_aliurl.empty()) {
+			//ali_request->setUrl("ws://nls-gateway-cn-shanghai-internal.aliyuncs.com/ws/v1");
+			ali_request->setUrl(g_aliurl.c_str());
+		}
 	}
  
     // 初始化阿里SDK的request
