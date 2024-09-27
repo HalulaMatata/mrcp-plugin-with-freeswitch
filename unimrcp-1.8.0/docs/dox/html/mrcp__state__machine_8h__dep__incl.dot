@@ -1,0 +1,45 @@
+digraph "mrcp_state_machine.h"
+{
+  edge [fontname="Helvetica",fontsize="10",labelfontname="Helvetica",labelfontsize="10"];
+  node [fontname="Helvetica",fontsize="10",shape=record];
+  Node8 [label="mrcp_state_machine.h",height=0.2,width=0.4,color="black", fillcolor="grey75", style="filled", fontcolor="black"];
+  Node8 -> Node9 [dir="back",color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node9 [label="mrcp_engine_types.h",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$mrcp__engine__types_8h.html",tooltip="MRCP Engine Types. "];
+  Node9 -> Node10 [dir="back",color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node10 [label="mrcp_engine_iface.h",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$mrcp__engine__iface_8h.html",tooltip="MRCP Engine User Interface (typically user is an MRCP server) "];
+  Node10 -> Node11 [dir="back",color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node11 [label="mrcp_engine_factory.h",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$mrcp__engine__factory_8h.html",tooltip="Factory of MRCP Engines. "];
+  Node10 -> Node12 [dir="back",color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node12 [label="mrcp_engine_loader.h",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$mrcp__engine__loader_8h.html",tooltip="Loader of plugins for MRCP engines. "];
+  Node10 -> Node13 [dir="back",color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node13 [label="mrcp_server.h",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$mrcp__server_8h.html",tooltip="MRCP Server. "];
+  Node13 -> Node14 [dir="back",color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node14 [label="unimrcp_server.h",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$unimrcp__server_8h.html",tooltip="UniMRCP Server. "];
+  Node9 -> Node15 [dir="back",color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node15 [label="mrcp_engine_impl.h",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$mrcp__engine__impl_8h.html",tooltip="MRCP Engine Realization Interface (typically should be implemented in plugins) "];
+  Node15 -> Node16 [dir="back",color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node16 [label="mrcp_recog_engine.h",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$mrcp__recog__engine_8h.html",tooltip="Recognizer Engine Includes. "];
+  Node15 -> Node17 [dir="back",color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node17 [label="mrcp_recorder_engine.h",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$mrcp__recorder__engine_8h.html",tooltip="Recorder Engine Includes. "];
+  Node15 -> Node18 [dir="back",color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node18 [label="mrcp_resource_engine.h",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$mrcp__resource__engine_8h.html",tooltip="Legacy MRCP Resource Engine. "];
+  Node15 -> Node19 [dir="back",color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node19 [label="mrcp_synth_engine.h",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$mrcp__synth__engine_8h.html",tooltip="Synthesizer Engine Includes. "];
+  Node15 -> Node20 [dir="back",color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node20 [label="mrcp_verifier_engine.h",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$mrcp__verifier__engine_8h.html",tooltip="Verifier Engine Includes. "];
+  Node9 -> Node21 [dir="back",color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node21 [label="mrcp_engine_plugin.h",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$mrcp__engine__plugin_8h.html",tooltip="MRCP Engine Plugin. "];
+  Node21 -> Node16 [dir="back",color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node21 -> Node17 [dir="back",color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node21 -> Node18 [dir="back",color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node21 -> Node19 [dir="back",color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node21 -> Node20 [dir="back",color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node8 -> Node22 [dir="back",color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node22 [label="mrcp_recog_state_machine.h",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$mrcp__recog__state__machine_8h.html",tooltip="MRCP Recognizer State Machine. "];
+  Node8 -> Node23 [dir="back",color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node23 [label="mrcp_recorder_state\l_machine.h",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$mrcp__recorder__state__machine_8h.html",tooltip="MRCP Recorder State Machine. "];
+  Node8 -> Node24 [dir="back",color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node24 [label="mrcp_synth_state_machine.h",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$mrcp__synth__state__machine_8h.html",tooltip="MRCP Synthesizer State Machine. "];
+  Node8 -> Node25 [dir="back",color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node25 [label="mrcp_verifier_state\l_machine.h",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$mrcp__verifier__state__machine_8h.html",tooltip="MRCP Verifier State Machine. "];
+}

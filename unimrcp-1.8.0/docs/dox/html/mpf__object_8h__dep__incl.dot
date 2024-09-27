@@ -1,0 +1,12 @@
+digraph "mpf_object.h"
+{
+  edge [fontname="Helvetica",fontsize="10",labelfontname="Helvetica",labelfontsize="10"];
+  node [fontname="Helvetica",fontsize="10",shape=record];
+  Node10 [label="mpf_object.h",height=0.2,width=0.4,color="black", fillcolor="grey75", style="filled", fontcolor="black"];
+  Node10 -> Node11 [dir="back",color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node11 [label="mpf_bridge.h",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$mpf__bridge_8h.html",tooltip="MPF Stream Bridge. "];
+  Node10 -> Node12 [dir="back",color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node12 [label="mpf_mixer.h",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$mpf__mixer_8h.html",tooltip="MPF Stream Mixer (n-sources, 1-sink) "];
+  Node10 -> Node13 [dir="back",color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node13 [label="mpf_multiplier.h",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$mpf__multiplier_8h.html",tooltip="MPF Stream Multiplier (1-source, n-sinks) "];
+}

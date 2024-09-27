@@ -1,0 +1,16 @@
+digraph "mrcp_engine_impl.h"
+{
+  edge [fontname="Helvetica",fontsize="10",labelfontname="Helvetica",labelfontsize="10"];
+  node [fontname="Helvetica",fontsize="10",shape=record];
+  Node28 [label="mrcp_engine_impl.h",height=0.2,width=0.4,color="black", fillcolor="grey75", style="filled", fontcolor="black"];
+  Node28 -> Node29 [dir="back",color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node29 [label="mrcp_recog_engine.h",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$mrcp__recog__engine_8h.html",tooltip="Recognizer Engine Includes. "];
+  Node28 -> Node30 [dir="back",color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node30 [label="mrcp_recorder_engine.h",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$mrcp__recorder__engine_8h.html",tooltip="Recorder Engine Includes. "];
+  Node28 -> Node31 [dir="back",color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node31 [label="mrcp_resource_engine.h",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$mrcp__resource__engine_8h.html",tooltip="Legacy MRCP Resource Engine. "];
+  Node28 -> Node32 [dir="back",color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node32 [label="mrcp_synth_engine.h",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$mrcp__synth__engine_8h.html",tooltip="Synthesizer Engine Includes. "];
+  Node28 -> Node33 [dir="back",color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node33 [label="mrcp_verifier_engine.h",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$mrcp__verifier__engine_8h.html",tooltip="Verifier Engine Includes. "];
+}

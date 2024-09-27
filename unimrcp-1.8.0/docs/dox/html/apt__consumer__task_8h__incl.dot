@@ -1,0 +1,22 @@
+digraph "apt_consumer_task.h"
+{
+  edge [fontname="Helvetica",fontsize="10",labelfontname="Helvetica",labelfontsize="10"];
+  node [fontname="Helvetica",fontsize="10",shape=record];
+  Node0 [label="apt_consumer_task.h",height=0.2,width=0.4,color="black", fillcolor="grey75", style="filled", fontcolor="black"];
+  Node0 -> Node1 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node1 [label="apt_task.h",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$apt__task_8h.html",tooltip="Thread Execution Abstraction. "];
+  Node1 -> Node2 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node2 [label="apt.h",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$apt_8h.html",tooltip="APR Toolkit Definitions. "];
+  Node2 -> Node3 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node3 [label="apr.h",height=0.2,width=0.4,color="grey75", fillcolor="white", style="filled"];
+  Node2 -> Node4 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node4 [label="apr_pools.h",height=0.2,width=0.4,color="grey75", fillcolor="white", style="filled"];
+  Node2 -> Node5 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node5 [label="apr_strings.h",height=0.2,width=0.4,color="grey75", fillcolor="white", style="filled"];
+  Node1 -> Node6 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node6 [label="apt_task_msg.h",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$apt__task__msg_8h.html",tooltip="Task Message Base Definition. "];
+  Node6 -> Node2 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node0 -> Node7 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node7 [label="apt_timer_queue.h",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$apt__timer__queue_8h.html",tooltip="Timer Queue. "];
+  Node7 -> Node2 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+}

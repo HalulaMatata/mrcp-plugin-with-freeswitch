@@ -1,0 +1,39 @@
+digraph "mrcp_client_profile_t"
+{
+  edge [fontname="Helvetica",fontsize="10",labelfontname="Helvetica",labelfontsize="10"];
+  node [fontname="Helvetica",fontsize="10",shape=record];
+  rankdir="LR";
+  Node1 [label="mrcp_client_profile_t",height=0.2,width=0.4,color="black", fillcolor="grey75", style="filled", fontcolor="black"];
+  Node2 -> Node1 [dir="back",color="darkorchid3",fontsize="10",style="dashed",label=" signaling_settings" ,fontname="Helvetica"];
+  Node2 [label="mrcp_sig_settings_t",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmrcp__sig__settings__t.html"];
+  Node3 -> Node1 [dir="back",color="darkorchid3",fontsize="10",style="dashed",label=" rtp_termination_factory" ,fontname="Helvetica"];
+  Node3 [label="mpf_termination_factory_t",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmpf__termination__factory__t.html"];
+  Node4 -> Node3 [dir="back",color="darkorchid3",fontsize="10",style="dashed",label=" create_termination" ,fontname="Helvetica"];
+  Node4 [label="mpf_termination_t",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmpf__termination__t.html"];
+  Node5 -> Node4 [dir="back",color="darkorchid3",fontsize="10",style="dashed",label=" vtable" ,fontname="Helvetica"];
+  Node5 [label="mpf_termination_vtable_t",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmpf__termination__vtable__t.html"];
+  Node3 -> Node4 [dir="back",color="darkorchid3",fontsize="10",style="dashed",label=" termination_factory" ,fontname="Helvetica"];
+  Node6 -> Node4 [dir="back",color="darkorchid3",fontsize="10",style="dashed",label=" audio_stream" ,fontname="Helvetica"];
+  Node6 [label="mpf_audio_stream_t",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmpf__audio__stream__t.html"];
+  Node7 -> Node6 [dir="back",color="darkorchid3",fontsize="10",style="dashed",label=" vtable" ,fontname="Helvetica"];
+  Node7 [label="mpf_audio_stream_vtable_t",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmpf__audio__stream__vtable__t.html"];
+  Node8 -> Node6 [dir="back",color="darkorchid3",fontsize="10",style="dashed",label=" capabilities" ,fontname="Helvetica"];
+  Node8 [label="mpf_stream_capabilities_t",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmpf__stream__capabilities__t.html"];
+  Node9 -> Node8 [dir="back",color="darkorchid3",fontsize="10",style="dashed",label=" codecs" ,fontname="Helvetica"];
+  Node9 [label="mpf_codec_capabilities_t",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmpf__codec__capabilities__t.html"];
+  Node10 -> Node6 [dir="back",color="darkorchid3",fontsize="10",style="dashed",label=" tx_descriptor\nrx_descriptor\ntx_event_descriptor\nrx_event_descriptor" ,fontname="Helvetica"];
+  Node10 [label="mpf_codec_descriptor_t",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmpf__codec__descriptor__t.html"];
+  Node11 -> Node10 [dir="back",color="darkorchid3",fontsize="10",style="dashed",label=" name" ,fontname="Helvetica"];
+  Node11 [label="apt_str_t",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structapt__str__t.html"];
+  Node4 -> Node6 [dir="back",color="darkorchid3",fontsize="10",style="dashed",label=" termination" ,fontname="Helvetica"];
+  Node12 -> Node4 [dir="back",color="darkorchid3",fontsize="10",style="dashed",label=" video_stream" ,fontname="Helvetica"];
+  Node12 [label="mpf_video_stream_t",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmpf__video__stream__t.html"];
+  Node4 -> Node12 [dir="back",color="darkorchid3",fontsize="10",style="dashed",label=" termination" ,fontname="Helvetica"];
+  Node13 -> Node1 [dir="back",color="darkorchid3",fontsize="10",style="dashed",label=" rtp_settings" ,fontname="Helvetica"];
+  Node13 [label="mpf_rtp_settings_t",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmpf__rtp__settings__t.html"];
+  Node14 -> Node13 [dir="back",color="darkorchid3",fontsize="10",style="dashed",label=" jb_config" ,fontname="Helvetica"];
+  Node14 [label="mpf_jb_config_t",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmpf__jb__config__t.html"];
+  Node15 -> Node13 [dir="back",color="darkorchid3",fontsize="10",style="dashed",label=" codec_list" ,fontname="Helvetica"];
+  Node15 [label="mpf_codec_list_t",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmpf__codec__list__t.html"];
+  Node10 -> Node15 [dir="back",color="darkorchid3",fontsize="10",style="dashed",label=" primary_descriptor\nevent_descriptor" ,fontname="Helvetica"];
+}

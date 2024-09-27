@@ -1,0 +1,19 @@
+digraph "rtsp.h"
+{
+  edge [fontname="Helvetica",fontsize="10",labelfontname="Helvetica",labelfontsize="10"];
+  node [fontname="Helvetica",fontsize="10",shape=record];
+  Node9 [label="rtsp.h",height=0.2,width=0.4,color="black", fillcolor="grey75", style="filled", fontcolor="black"];
+  Node9 -> Node10 [dir="back",color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node10 [label="rtsp_start_line.h",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$rtsp__start__line_8h.html",tooltip="RTSP Start Line (request-line/status-line) "];
+  Node10 -> Node11 [dir="back",color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node11 [label="rtsp_message.h",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$rtsp__message_8h.html",tooltip="RTSP Message Definition. "];
+  Node11 -> Node12 [dir="back",color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node12 [label="rtsp_client.h",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$rtsp__client_8h.html",tooltip="RTSP Client. "];
+  Node11 -> Node13 [dir="back",color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node13 [label="rtsp_server.h",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$rtsp__server_8h.html",tooltip="RTSP Server. "];
+  Node11 -> Node14 [dir="back",color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node14 [label="rtsp_stream.h",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$rtsp__stream_8h.html",tooltip="RTSP Stream Parser and Generator. "];
+  Node9 -> Node15 [dir="back",color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node15 [label="rtsp_header.h",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$rtsp__header_8h.html",tooltip="RTSP Header. "];
+  Node15 -> Node11 [dir="back",color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+}

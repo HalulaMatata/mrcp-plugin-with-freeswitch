@@ -1,0 +1,11 @@
+digraph "include" {
+  compound=true
+  node [ fontsize="10", fontname="Helvetica"];
+  edge [ labelfontsize="10", labelfontname="Helvetica"];
+  subgraph clusterdir_c662ca9af3df7d72bd4d5e29e5b2841e {
+    graph [ bgcolor="#ddddee", pencolor="black", label="libunimrcp-server" fontname="Helvetica", fontsize="10", URL="dir_c662ca9af3df7d72bd4d5e29e5b2841e.html"]
+  dir_8a8e9e2d5e963ee8e32a7dc7a1b3824c [shape=box, label="include", style="filled", fillcolor="#eeeeff", pencolor="black", URL="dir_8a8e9e2d5e963ee8e32a7dc7a1b3824c.html"];
+  }
+  dir_6719ab1f1f7655efc2fa43f7eb574fd1 [shape=box label="libs" fillcolor="white" style="filled" color="red" URL="dir_6719ab1f1f7655efc2fa43f7eb574fd1.html"];
+  dir_8a8e9e2d5e963ee8e32a7dc7a1b3824c->dir_6719ab1f1f7655efc2fa43f7eb574fd1 [headlabel="1", labeldistance=1.5 headhref="dir_000041_000000.html"];
+}
